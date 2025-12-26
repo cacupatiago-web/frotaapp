@@ -71,10 +71,8 @@ const Index = () => {
                   </NavLink>
                 </Button>
                 <p className="text-xs text-muted-foreground sm:text-sm">
-                  Admin acede com número <span className="font-semibold text-foreground">912345678</span> e senha
-                  <span className="font-semibold text-foreground"> 123456789</span>. Registos são criados como
-                  motoristas.
-                </p>
+                   Utilize o seu número de telefone e senha para aceder como administrador ou motorista.
+                 </p>
               </div>
 
               <dl className="grid gap-4 text-xs text-muted-foreground sm:grid-cols-3 sm:text-sm">
