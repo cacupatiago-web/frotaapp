@@ -2536,8 +2536,8 @@ const AdminDashboard = () => {
                                   </SelectTrigger>
                                   <SelectContent>
                                     {suppliers
-                                      .filter(s => s.category === 'oficina' || s.category === 'outro')
-                                      .map(s => (
+                                      .filter((s) => s.category === "oficina" || s.category === "outro")
+                                      .map((s) => (
                                         <SelectItem key={s.id} value={s.id}>
                                           {s.name}
                                         </SelectItem>
@@ -2546,6 +2546,21 @@ const AdminDashboard = () => {
                                 </Select>
                               </div>
                               <div className="space-y-1.5">
+                                <Label htmlFor="custo-manutencao">Custo total da manutenção</Label>
+                                <Input
+                                  id="custo-manutencao"
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Ex.: 25000"
+                                  value={maintenanceCost}
+                                  onChange={(e) => setMaintenanceCost(e.target.value)}
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                  Este valor será registado também nas finanças como despesa de manutenção.
+                                </p>
+                              </div>
+                              <div className="space-y-1.5 md:col-span-2">
                                 <Label htmlFor="descricao-manutencao">Descrição dos trabalhos (opcional)</Label>
                                 <Input
                                   id="descricao-manutencao"
