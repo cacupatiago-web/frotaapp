@@ -493,27 +493,17 @@ const AdminDashboard = () => {
     queryKey: ["drivers"],
     queryFn: async () => {
       if (!user) return [];
-      
-      // Buscar user_roles primeiro
-      const { data: userRoles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "motorista");
 
-      if (rolesError) throw rolesError;
-      if (!userRoles || userRoles.length === 0) return [];
-
-      const driverIds = userRoles.map(ur => ur.user_id);
-
-      // Buscar profiles dos motoristas
+      // Considerar como motoristas todos os perfis excepto o próprio admin autenticado
       const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name, phone")
-        .in("id", driverIds)
         .order("full_name", { ascending: true });
 
       if (error) throw error;
-      return (data ?? []) as Array<{id: string, full_name: string, phone: string}>;
+
+      const filtered = (data ?? []).filter((profile) => profile.id !== user.id);
+      return filtered as Array<{ id: string; full_name: string; phone: string }>;
     },
     enabled: !!user,
   });
