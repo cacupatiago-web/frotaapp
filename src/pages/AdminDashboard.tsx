@@ -254,6 +254,8 @@ const AdminDashboard = () => {
   const [maintenanceDescription, setMaintenanceDescription] = useState("");
   const [maintenanceSupplierId, setMaintenanceSupplierId] = useState<string>("");
   const [maintenanceCost, setMaintenanceCost] = useState<string>("");
+  const [maintenanceStartDateFilter, setMaintenanceStartDateFilter] = useState<string>("");
+  const [maintenanceEndDateFilter, setMaintenanceEndDateFilter] = useState<string>("");
 
   const [fuelVehicleId, setFuelVehicleId] = useState<string>("");
   const [fuelDate, setFuelDate] = useState<Date | undefined>();
@@ -361,7 +363,7 @@ const AdminDashboard = () => {
       const { data, error } = await (supabase as any)
         .from("vehicle_maintenances" as any)
         .select(
-          "id, user_id, vehicle_id, scheduled_date, status, maintenance_type, description, created_at, updated_at, vehicles:vehicle_id(id, placa, marca, modelo, odometro)",
+          "id, user_id, vehicle_id, scheduled_date, status, maintenance_type, description, cost, created_at, updated_at, vehicles:vehicle_id(id, placa, marca, modelo, odometro)",
         )
         .order("scheduled_date", { ascending: false });
 
@@ -2703,25 +2705,45 @@ const AdminDashboard = () => {
                                 actualizar o estado do serviço.
                               </p>
                             </div>
-                            <div className="w-full max-w-xs space-y-1.5 text-xs">
-                              <Label htmlFor="filtro-veiculo-manutencao">Filtrar por veículo</Label>
-                              <Select
-                                value={maintenanceVehicleFilter}
-                                onValueChange={(value) => setMaintenanceVehicleFilter(value)}
-                              >
-                                <SelectTrigger id="filtro-veiculo-manutencao">
-                                  <SelectValue placeholder="Todos os veículos" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">Todos</SelectItem>
-                                  {vehicles.map((vehicle) => (
-                                    <SelectItem key={vehicle.id} value={vehicle.id}>
-                                      {vehicle.placa} · {vehicle.marca} {vehicle.modelo}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                          <div className="w-full max-w-xs space-y-1.5 text-xs">
+                            <Label htmlFor="filtro-veiculo-manutencao">Filtrar por veículo</Label>
+                            <Select
+                              value={maintenanceVehicleFilter}
+                              onValueChange={(value) => setMaintenanceVehicleFilter(value)}
+                            >
+                              <SelectTrigger id="filtro-veiculo-manutencao">
+                                <SelectValue placeholder="Todos os veículos" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                {vehicles.map((vehicle) => (
+                                  <SelectItem key={vehicle.id} value={vehicle.id}>
+                                    {vehicle.placa} · {vehicle.marca} {vehicle.modelo}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex flex-1 gap-2 text-xs">
+                            <div className="flex-1 space-y-1.5">
+                              <Label htmlFor="manutencao-data-inicio">Data inicial</Label>
+                              <Input
+                                id="manutencao-data-inicio"
+                                type="date"
+                                value={maintenanceStartDateFilter}
+                                onChange={(e) => setMaintenanceStartDateFilter(e.target.value)}
+                              />
                             </div>
+                            <div className="flex-1 space-y-1.5">
+                              <Label htmlFor="manutencao-data-fim">Data final</Label>
+                              <Input
+                                id="manutencao-data-fim"
+                                type="date"
+                                value={maintenanceEndDateFilter}
+                                onChange={(e) => setMaintenanceEndDateFilter(e.target.value)}
+                              />
+                            </div>
+                          </div>
                           </div>
 
                           <div className="overflow-x-auto">
@@ -2732,19 +2754,20 @@ const AdminDashboard = () => {
                                   <TableHead>Serviço</TableHead>
                                   <TableHead>Data agendada</TableHead>
                                   <TableHead>Status</TableHead>
+                                  <TableHead className="text-right">Custo (Kz)</TableHead>
                                   <TableHead className="text-right">Odómetro (km)</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {isMaintenancesLoading ? (
                                   <TableRow>
-                                    <TableCell colSpan={5} className="py-6 text-center text-xs text-muted-foreground">
+                                    <TableCell colSpan={6} className="py-6 text-center text-xs text-muted-foreground">
                                       A carregar histórico de manutenções...
                                     </TableCell>
                                   </TableRow>
                                 ) : maintenances.length === 0 ? (
                                   <TableRow>
-                                    <TableCell colSpan={5} className="py-6 text-center text-xs text-muted-foreground">
+                                    <TableCell colSpan={6} className="py-6 text-center text-xs text-muted-foreground">
                                       Ainda não existem manutenções registadas.
                                     </TableCell>
                                   </TableRow>
@@ -2753,6 +2776,18 @@ const AdminDashboard = () => {
                                     .filter((m: any) =>
                                       maintenanceVehicleFilter === "all" ? true : m.vehicle_id === maintenanceVehicleFilter,
                                     )
+                                    .filter((m: any) => {
+                                      if (!maintenanceStartDateFilter && !maintenanceEndDateFilter) return true;
+                                      const d = m.scheduled_date ? new Date(m.scheduled_date).getTime() : null;
+                                      if (!d) return false;
+                                      const startOk = maintenanceStartDateFilter
+                                        ? d >= new Date(maintenanceStartDateFilter).getTime()
+                                        : true;
+                                      const endOk = maintenanceEndDateFilter
+                                        ? d <= new Date(maintenanceEndDateFilter).getTime()
+                                        : true;
+                                      return startOk && endOk;
+                                    })
                                     .map((maintenance: any) => (
                                       <TableRow key={maintenance.id}>
                                         <TableCell>
@@ -2815,20 +2850,112 @@ const AdminDashboard = () => {
                                               <SelectItem value="agendado">Agendado</SelectItem>
                                               <SelectItem value="em_progresso">Em progresso</SelectItem>
                                               <SelectItem value="concluido">Concluído</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        </TableCell>
-                                        <TableCell className="text-right text-xs">
-                                          {maintenance.vehicle?.odometro
-                                            ? maintenance.vehicle.odometro.toLocaleString("pt-PT")
-                                            : "-"}
-                                        </TableCell>
-                                      </TableRow>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="text-right text-xs">
+                                      {typeof maintenance.cost === "number"
+                                        ? maintenance.cost.toLocaleString("pt-PT", {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })
+                                        : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-right text-xs">
+                                      {typeof maintenance.cost === "number"
+                                        ? maintenance.cost.toLocaleString("pt-PT", {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })
+                                        : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-right text-xs">
+                                      {maintenance.vehicle?.odometro
+                                        ? maintenance.vehicle.odometro.toLocaleString("pt-PT")
+                                        : "-"}
+                                    </TableCell>
+                                  </TableRow>
                                     ))
                                 )}
                               </TableBody>
                             </Table>
                           </div>
+                          {(() => {
+                            const filtered = maintenances
+                              .filter((m: any) =>
+                                maintenanceVehicleFilter === "all" ? true : m.vehicle_id === maintenanceVehicleFilter,
+                              )
+                              .filter((m: any) => {
+                                if (!maintenanceStartDateFilter && !maintenanceEndDateFilter) return true;
+                                const d = m.scheduled_date ? new Date(m.scheduled_date).getTime() : null;
+                                if (!d) return false;
+                                const startOk = maintenanceStartDateFilter
+                                  ? d >= new Date(maintenanceStartDateFilter).getTime()
+                                  : true;
+                                const endOk = maintenanceEndDateFilter
+                                  ? d <= new Date(maintenanceEndDateFilter).getTime()
+                                  : true;
+                                return startOk && endOk;
+                              });
+
+                            const totalGeral = filtered.reduce(
+                              (sum: number, m: any) => (typeof m.cost === "number" ? sum + m.cost : sum),
+                              0,
+                            );
+
+                            const porVeiculo = filtered.reduce((acc: Record<string, { label: string; total: number }>, m: any) => {
+                              const key = m.vehicle?.placa || "Sem placa";
+                              if (!acc[key]) {
+                                acc[key] = { label: key, total: 0 };
+                              }
+                              if (typeof m.cost === "number") {
+                                acc[key].total += m.cost;
+                              }
+                              return acc;
+                            }, {} as Record<string, { label: string; total: number }>);
+
+                            return filtered.length > 0 ? (
+                              <div className="mt-4 grid gap-3 text-xs md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.7fr)]">
+                                <div className="space-y-1 rounded-md border border-border/70 bg-background/80 p-3">
+                                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                    Total do período
+                                  </p>
+                                  <p className="text-lg font-semibold">
+                                    {totalGeral.toLocaleString("pt-PT", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    Kz
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Soma de todas as intervenções filtradas por viatura e intervalo de datas.
+                                  </p>
+                                </div>
+                                <div className="space-y-2 rounded-md border border-border/70 bg-background/80 p-3">
+                                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                    Total por viatura
+                                  </p>
+                                  <ul className="space-y-1.5">
+                                    {Object.values(porVeiculo).map((item: { label: string; total: number }) => (
+                                      <li
+                                        key={item.label}
+                                        className="flex items-center justify-between rounded-sm border border-border/60 bg-background/80 px-2 py-1.5"
+                                      >
+                                        <span className="text-xs font-medium">{item.label}</span>
+                                        <span className="text-xs">
+                                          {item.total.toLocaleString("pt-PT", {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}{" "}
+                                          Kz
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
                         </section>
                       </AccordionContent>
                     </AccordionItem>
