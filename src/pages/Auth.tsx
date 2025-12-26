@@ -217,7 +217,7 @@ export default function Auth() {
                   {loading ? "A entrar..." : "Entrar"}
                 </Button>
                 <p className="mt-3 text-xs text-center text-muted-foreground">
-                  Admin: 912345678 / 123456789
+                  Use o seu número de telefone como utilizador e a senha definida no registo.
                 </p>
               </form>
             </TabsContent>
