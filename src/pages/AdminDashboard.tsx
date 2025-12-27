@@ -1225,14 +1225,14 @@ const AdminDashboard = () => {
     }
 
     const payload = {
-      user_id: user?.id,
-      type: financeType,
-      category: financeCategory,
-      amount: parseFloat(financeAmount),
-      date: financeDate.toISOString().split("T")[0],
-      vehicle_id: financeVehicleId || null,
-      description: financeDescription.trim() || null,
-    };
+       user_id: user?.id,
+       type: financeType === "receita" ? "entrada" : "saida",
+       category: financeCategory,
+       amount: parseFloat(financeAmount),
+       date: financeDate.toISOString().split("T")[0],
+       vehicle_id: financeVehicleId || null,
+       description: financeDescription.trim() || null,
+     };
 
     try {
       const { error } = await (supabase as any).from("financial_transactions" as any).insert(payload);
@@ -2639,18 +2639,18 @@ const AdminDashboard = () => {
                                       if (error) throw error;
 
                                       const financialPayload = payload.map((m) => ({
-                                        user_id: user?.id,
-                                        vehicle_id: m.vehicle_id,
-                                        date: m.scheduled_date,
-                                        type: "despesa",
-                                        category: "manutencao",
-                                        amount: costNumber,
-                                        description:
-                                          m.description ||
-                                          `Manutenção veículo ${
-                                            vehicles.find((v) => v.id === m.vehicle_id)?.placa || "sem placa"
-                                          }`,
-                                      }));
+                                         user_id: user?.id,
+                                         vehicle_id: m.vehicle_id,
+                                         date: m.scheduled_date,
+                                         type: "saida",
+                                         category: "manutencao",
+                                         amount: costNumber,
+                                         description:
+                                           m.description ||
+                                           `Manutenção veículo ${
+                                             vehicles.find((v) => v.id === m.vehicle_id)?.placa || "sem placa"
+                                           }`,
+                                       }));
 
                                       const { error: financeError } = await (supabase as any)
                                         .from("financial_transactions" as any)
