@@ -92,11 +92,63 @@ interface FinancialTransaction {
   description: string | null;
 }
 
+interface FuelFillup {
+  id: string;
+  user_id: string;
+  vehicle_id: string;
+  date: string;
+  odometer: number | null;
+  liters: number;
+  price_per_liter: number;
+  total_amount: number;
+  supplier_name: string | null;
+  fuel_type: FuelType | null;
+  vehicle?: {
+    placa: string;
+    marca: string;
+    modelo: string;
+  } | null;
+}
+
+type InventoryCategory = "pneus" | "oleo" | "filtros" | "pecas" | "consumiveis" | "outro";
+
+interface InventoryItem {
+  id: string;
+  user_id: string;
+  name: string;
+  category: InventoryCategory;
+  unit: string;
+  current_stock: number;
+  minimum_stock: number;
+  unit_cost: number | null;
+  location: string | null;
+  notes: string | null;
+}
+
 const categoryLabels: Record<string, string> = {
   combustivel: "Combustível",
   inventario: "Inventário",
   manutencao: "Manutenção",
   outros: "Outros",
+};
+
+const fuelTypeLabels: Record<FuelType, string> = {
+  gasolina: "Gasolina",
+  diesel: "Diesel",
+  etanol: "Etanol",
+  gas_natural: "Gás natural",
+  eletrico: "Eléctrico",
+  hibrido: "Híbrido",
+  outro: "Outro",
+};
+
+const inventoryCategoryLabels: Record<InventoryCategory, string> = {
+  pneus: "Pneus",
+  oleo: "Óleo",
+  filtros: "Filtros",
+  pecas: "Peças",
+  consumiveis: "Consumíveis",
+  outro: "Outros",
 };
 
 const chartConfig = {
@@ -144,6 +196,16 @@ const AdminDashboard = () => {
   const [maintenanceStartDateFilter, setMaintenanceStartDateFilter] = useState<string>("");
   const [maintenanceEndDateFilter, setMaintenanceEndDateFilter] = useState<string>("");
 
+  // ------- Estado Combustível -------
+  const [fuelVehicleFilter, setFuelVehicleFilter] = useState<string>("all");
+  const [fuelStartDate, setFuelStartDate] = useState<string>("");
+  const [fuelEndDate, setFuelEndDate] = useState<string>("");
+
+  // ------- Estado Inventário -------
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | InventoryCategory>("all");
+  const [inventoryLowStockOnly, setInventoryLowStockOnly] = useState(false);
+
   // ------- Queries -------
   const { data: vehicles = [], isLoading: isVehiclesLoading } = useQuery<Vehicle[]>({
     queryKey: ["vehicles", user?.id],
@@ -178,9 +240,11 @@ const AdminDashboard = () => {
     enabled: !!user,
   });
 
-  const { data: transactions = [], isLoading: isTransactionsLoading, refetch: refetchTransactions } = useQuery<
-    FinancialTransaction[]
-  >({
+  const {
+    data: transactions = [],
+    isLoading: isTransactionsLoading,
+    refetch: refetchTransactions,
+  } = useQuery<FinancialTransaction[]>({
     queryKey: ["financial_transactions", user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -190,6 +254,40 @@ const AdminDashboard = () => {
         .order("date", { ascending: false });
       if (error) throw error;
       return (data ?? []) as FinancialTransaction[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: fuelFillups = [], isLoading: isFuelLoading } = useQuery<FuelFillup[]>({
+    queryKey: ["fuel_fillups", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("fuel_fillups")
+        .select(
+          "id, user_id, vehicle_id, date, odometer, liters, price_per_liter, total_amount, supplier_name, fuel_type, vehicles:vehicle_id(placa, marca, modelo)",
+        )
+        .order("date", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []).map((row: any) => ({
+        ...row,
+        vehicle: row.vehicles,
+      }));
+    },
+    enabled: !!user,
+  });
+
+  const { data: inventoryItems = [], isLoading: isInventoryLoading } = useQuery<InventoryItem[]>({
+    queryKey: ["inventory_items", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("inventory_items")
+        .select("id, user_id, name, category, unit, current_stock, minimum_stock, unit_cost, location, notes")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as InventoryItem[];
     },
     enabled: !!user,
   });
@@ -303,6 +401,8 @@ const AdminDashboard = () => {
     }
   };
 
+  // ------- Derivados -------
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
       if (typeFilter !== "all" && t.type !== typeFilter) return false;
@@ -399,6 +499,31 @@ const AdminDashboard = () => {
     });
   }, [maintenances, maintenanceVehicleFilter, maintenanceStartDateFilter, maintenanceEndDateFilter]);
 
+  const filteredFuelFillups = useMemo(() => {
+    return fuelFillups.filter((f) => {
+      if (fuelVehicleFilter !== "all" && f.vehicle_id !== fuelVehicleFilter) return false;
+      if (fuelStartDate && f.date < fuelStartDate) return false;
+      if (fuelEndDate && f.date > fuelEndDate) return false;
+      return true;
+    });
+  }, [fuelFillups, fuelVehicleFilter, fuelStartDate, fuelEndDate]);
+
+  const filteredInventoryItems = useMemo(() => {
+    return inventoryItems.filter((i) => {
+      if (
+        inventorySearch &&
+        !`${i.name} ${inventoryCategoryLabels[i.category]} ${i.location ?? ""}`
+          .toLowerCase()
+          .includes(inventorySearch.toLowerCase())
+      ) {
+        return false;
+      }
+      if (inventoryCategoryFilter !== "all" && i.category !== inventoryCategoryFilter) return false;
+      if (inventoryLowStockOnly && i.current_stock > i.minimum_stock) return false;
+      return true;
+    });
+  }, [inventoryItems, inventorySearch, inventoryCategoryFilter, inventoryLowStockOnly]);
+
   const handleLogout = async () => {
     await signOut();
     window.location.href = "/auth";
@@ -439,7 +564,7 @@ const AdminDashboard = () => {
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Visão geral da frota</h1>
             <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
-              Controle veículos, manutenções e finanças da frota num único painel.
+              Controle veículos, manutenções, combustível, inventário e finanças da frota num único painel.
             </p>
           </div>
         </section>
@@ -678,10 +803,7 @@ const AdminDashboard = () => {
                     onChange={(e) => setVehicleSearch(e.target.value)}
                   />
                   <div className="flex flex-wrap gap-2">
-                    <Select
-                      value={vehicleStatusFilter}
-                      onValueChange={(v) => setVehicleStatusFilter(v as any)}
-                    >
+                    <Select value={vehicleStatusFilter} onValueChange={(v) => setVehicleStatusFilter(v as any)}>
                       <SelectTrigger className="h-8 w-32">
                         <SelectValue placeholder="Estado" />
                       </SelectTrigger>
@@ -693,10 +815,7 @@ const AdminDashboard = () => {
                       </SelectContent>
                     </Select>
 
-                    <Select
-                      value={vehicleFuelFilter}
-                      onValueChange={(v) => setVehicleFuelFilter(v as any)}
-                    >
+                    <Select value={vehicleFuelFilter} onValueChange={(v) => setVehicleFuelFilter(v as any)}>
                       <SelectTrigger className="h-8 w-32">
                         <SelectValue placeholder="Combustível" />
                       </SelectTrigger>
@@ -746,7 +865,7 @@ const AdminDashboard = () => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              {v.combustivel ? categoryLabels[v.combustivel] || v.combustivel : "—"}
+                              {v.combustivel ? fuelTypeLabels[v.combustivel] : "—"}
                             </TableCell>
                             <TableCell>
                               <Badge
@@ -768,7 +887,6 @@ const AdminDashboard = () => {
                               {v.odometro != null ? `${v.odometro.toLocaleString("pt-PT")} km` : "Sem registo"}
                             </TableCell>
                             <TableCell className="text-right space-x-1">
-                              {/* A acção de edição pode ser reposta depois se necessário */}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -801,10 +919,7 @@ const AdminDashboard = () => {
                 <div className="grid gap-3 md:grid-cols-4">
                   <div className="space-y-1.5">
                     <p className="text-[11px] font-medium text-muted-foreground">Veículo</p>
-                    <Select
-                      value={maintenanceVehicleId}
-                      onValueChange={setMaintenanceVehicleId}
-                    >
+                    <Select value={maintenanceVehicleId} onValueChange={setMaintenanceVehicleId}>
                       <SelectTrigger className="h-8">
                         <SelectValue placeholder="Seleccionar veículo" />
                       </SelectTrigger>
@@ -820,10 +935,7 @@ const AdminDashboard = () => {
 
                   <div className="space-y-1.5">
                     <p className="text-[11px] font-medium text-muted-foreground">Tipo</p>
-                    <Select
-                      value={maintenanceType}
-                      onValueChange={(v) => setMaintenanceType(v as MaintenanceType)}
-                    >
+                    <Select value={maintenanceType} onValueChange={(v) => setMaintenanceType(v as MaintenanceType)}>
                       <SelectTrigger className="h-8">
                         <SelectValue />
                       </SelectTrigger>
@@ -890,10 +1002,7 @@ const AdminDashboard = () => {
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-wrap gap-2 items-center">
                     <p className="text-[11px] font-medium text-muted-foreground">Veículo</p>
-                    <Select
-                      value={maintenanceVehicleFilter}
-                      onValueChange={setMaintenanceVehicleFilter}
-                    >
+                    <Select value={maintenanceVehicleFilter} onValueChange={setMaintenanceVehicleFilter}>
                       <SelectTrigger className="h-8 w-40">
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
@@ -1002,37 +1111,227 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* --------- ABA COMBUSTÍVEL & INVENTÁRIO (PLACEHOLDER) --------- */}
+          {/* --------- ABA COMBUSTÍVEL --------- */}
           <TabsContent value="combustivel" className="space-y-4">
             <Card className="animate-fade-in">
               <CardHeader>
-                <CardTitle className="text-base">Combustível</CardTitle>
+                <CardTitle className="text-base">Grelha de abastecimentos</CardTitle>
                 <CardDescription>
-                  Abastecimentos, consumo médio e ligação às transacções financeiras.
+                  Registos de combustível por viatura, integrados com os custos financeiros.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Os custos de combustível registados noutras partes do sistema aparecem aqui na aba Finanças. Posso
-                  recriar a grelha completa de abastecimentos, tal como tinha antes.
-                </p>
+              <CardContent className="space-y-4 text-xs md:text-sm">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <p className="text-[11px] font-medium text-muted-foreground">Veículo</p>
+                    <Select value={fuelVehicleFilter} onValueChange={setFuelVehicleFilter}>
+                      <SelectTrigger className="h-8 w-40">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {vehicles.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.placa} · {v.marca} {v.modelo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                      <Input
+                        type="date"
+                        className="h-8 w-36"
+                        value={fuelStartDate}
+                        onChange={(e) => setFuelStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                      <Input
+                        type="date"
+                        className="h-8 w-36"
+                        value={fuelEndDate}
+                        onChange={(e) => setFuelEndDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {isFuelLoading ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">A carregar abastecimentos...</p>
+                ) : filteredFuelFillups.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    Nenhum abastecimento encontrado para os filtros seleccionados.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Veículo</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead className="text-right">Litros</TableHead>
+                          <TableHead className="text-right">Preço/L (Kz)</TableHead>
+                          <TableHead className="text-right">Total (Kz)</TableHead>
+                          <TableHead>Fornecedor</TableHead>
+                          <TableHead>Odómetro</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredFuelFillups.map((f) => (
+                          <TableRow key={f.id} className="text-xs md:text-sm">
+                            <TableCell>{f.date}</TableCell>
+                            <TableCell>
+                              {f.vehicle ? (
+                                <div className="flex flex-col">
+                                  <span>{f.vehicle.placa}</span>
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {f.vehicle.marca} {f.vehicle.modelo}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Veículo removido</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {f.fuel_type ? fuelTypeLabels[f.fuel_type] : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-right">{f.liters.toLocaleString("pt-PT")}</TableCell>
+                            <TableCell className="text-right">
+                              Kz {f.price_per_liter.toLocaleString("pt-PT", { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              Kz {f.total_amount.toLocaleString("pt-PT", { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell>{f.supplier_name ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                            <TableCell>
+                              {f.odometer != null
+                                ? `${f.odometer.toLocaleString("pt-PT")} km`
+                                : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* --------- ABA INVENTÁRIO --------- */}
           <TabsContent value="inventario" className="space-y-4">
             <Card className="animate-fade-in">
               <CardHeader>
-                <CardTitle className="text-base">Inventário</CardTitle>
+                <CardTitle className="text-base">Itens de inventário</CardTitle>
                 <CardDescription>
-                  Controlo de peças, stock mínimo e movimentos de entrada/saída.
+                  Controlo de peças, consumíveis e materiais associados às viaturas.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  As saídas de inventário podem gerar automaticamente despesas na aba Finanças. Se quiser, posso
-                  reconstruir o módulo completo de itens e movimentos de stock.
-                </p>
+              <CardContent className="space-y-4 text-xs md:text-sm">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <Input
+                    placeholder="Pesquisar por nome, categoria ou localização"
+                    className="h-8 md:max-w-xs"
+                    value={inventorySearch}
+                    onChange={(e) => setInventorySearch(e.target.value)}
+                  />
+
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Select
+                      value={inventoryCategoryFilter}
+                      onValueChange={(v) => setInventoryCategoryFilter(v as any)}
+                    >
+                      <SelectTrigger className="h-8 w-40">
+                        <SelectValue placeholder="Categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas categorias</SelectItem>
+                        <SelectItem value="pneus">Pneus</SelectItem>
+                        <SelectItem value="oleo">Óleo</SelectItem>
+                        <SelectItem value="filtros">Filtros</SelectItem>
+                        <SelectItem value="pecas">Peças</SelectItem>
+                        <SelectItem value="consumiveis">Consumíveis</SelectItem>
+                        <SelectItem value="outro">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        className="h-3 w-3 rounded border-border bg-background"
+                        checked={inventoryLowStockOnly}
+                        onChange={(e) => setInventoryLowStockOnly(e.target.checked)}
+                      />
+                      Apenas stock baixo
+                    </label>
+                  </div>
+                </div>
+
+                {isInventoryLoading ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">A carregar inventário...</p>
+                ) : filteredInventoryItems.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    Nenhum item encontrado para os filtros seleccionados.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead>Unidade</TableHead>
+                          <TableHead className="text-right">Stock actual</TableHead>
+                          <TableHead className="text-right">Stock mínimo</TableHead>
+                          <TableHead className="text-right">Custo unitário (Kz)</TableHead>
+                          <TableHead>Localização</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredInventoryItems.map((item) => {
+                          const lowStock = item.current_stock <= item.minimum_stock;
+                          return (
+                            <TableRow
+                              key={item.id}
+                              className={lowStock ? "bg-destructive/5" : undefined}
+                            >
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col">
+                                  <span>{item.name}</span>
+                                  {item.notes && (
+                                    <span className="text-[11px] text-muted-foreground truncate max-w-[260px]">
+                                      {item.notes}
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>{inventoryCategoryLabels[item.category]}</TableCell>
+                              <TableCell>{item.unit}</TableCell>
+                              <TableCell className="text-right">
+                                {item.current_stock.toLocaleString("pt-PT")}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {item.minimum_stock.toLocaleString("pt-PT")}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {item.unit_cost != null
+                                  ? `Kz ${item.unit_cost.toLocaleString("pt-PT", { minimumFractionDigits: 2 })}`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>{item.location ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
