@@ -200,11 +200,31 @@ const AdminDashboard = () => {
   const [fuelVehicleFilter, setFuelVehicleFilter] = useState<string>("all");
   const [fuelStartDate, setFuelStartDate] = useState<string>("");
   const [fuelEndDate, setFuelEndDate] = useState<string>("");
+  const [fuelVehicleId, setFuelVehicleId] = useState<string>("");
+  const [fuelDate, setFuelDate] = useState<string>("");
+  const [fuelLiters, setFuelLiters] = useState<string>("");
+  const [fuelPricePerLiter, setFuelPricePerLiter] = useState<string>("");
+  const [fuelSupplierName, setFuelSupplierName] = useState<string>("");
+  const [fuelOdometer, setFuelOdometer] = useState<string>("");
+  const [fuelType, setFuelType] = useState<FuelType | "">("");
 
   // ------- Estado Inventário -------
   const [inventorySearch, setInventorySearch] = useState("");
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<"all" | InventoryCategory>("all");
   const [inventoryLowStockOnly, setInventoryLowStockOnly] = useState(false);
+  const [inventoryName, setInventoryName] = useState("");
+  const [inventoryCategory, setInventoryCategory] = useState<InventoryCategory | "">("");
+  const [inventoryUnit, setInventoryUnit] = useState("");
+  const [inventoryCurrentStock, setInventoryCurrentStock] = useState("");
+  const [inventoryMinimumStock, setInventoryMinimumStock] = useState("");
+  const [inventoryUnitCost, setInventoryUnitCost] = useState("");
+  const [inventoryLocation, setInventoryLocation] = useState("");
+  const [inventoryNotes, setInventoryNotes] = useState("");
+
+  // ------- Estado Definições -------
+  const [settingsVehicleId, setSettingsVehicleId] = useState<string>("");
+  const [settingsOdometer, setSettingsOdometer] = useState<string>("");
+  const [settingsNextServiceKm, setSettingsNextServiceKm] = useState<string>("");
 
   // ------- Queries -------
   const { data: vehicles = [], isLoading: isVehiclesLoading } = useQuery<Vehicle[]>({
@@ -373,9 +393,7 @@ const AdminDashboard = () => {
         amount: costNumber,
         description:
           maintenanceDescription ||
-          `Manutenção veículo ${
-            vehicles.find((v) => v.id === maintenanceVehicleId)?.placa || "sem placa"
-          }`,
+          `Manutenção veículo ${vehicles.find((v) => v.id === maintenanceVehicleId)?.placa || "sem placa"}`,
       } as any);
       if (financeError) throw financeError;
 
@@ -396,6 +414,217 @@ const AdminDashboard = () => {
       toast({
         title: "Erro ao agendar",
         description: "Não foi possível agendar a manutenção.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateFuelFillup = async () => {
+    if (!fuelVehicleId || !fuelDate || !fuelLiters || !fuelPricePerLiter) {
+      toast({
+        title: "Dados em falta",
+        description: "Preencha veículo, data, litros e preço por litro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const litersNumber = Number(fuelLiters.replace(",", "."));
+    const priceNumber = Number(fuelPricePerLiter.replace(",", "."));
+    const odometerNumber = fuelOdometer ? Number(fuelOdometer.replace(",", ".")) : null;
+
+    if (!Number.isFinite(litersNumber) || litersNumber <= 0 || !Number.isFinite(priceNumber) || priceNumber <= 0) {
+      toast({
+        title: "Valores inválidos",
+        description: "Litros e preço por litro devem ser números positivos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const totalAmount = litersNumber * priceNumber;
+
+    try {
+      const { error } = await supabase.from("fuel_fillups").insert({
+        user_id: user?.id,
+        vehicle_id: fuelVehicleId,
+        date: fuelDate,
+        liters: litersNumber,
+        price_per_liter: priceNumber,
+        total_amount: totalAmount,
+        supplier_name: fuelSupplierName || null,
+        odometer: odometerNumber,
+        fuel_type: fuelType || null,
+      } as any);
+      if (error) throw error;
+
+      const { error: financeError } = await supabase.from("financial_transactions").insert({
+        user_id: user?.id,
+        vehicle_id: fuelVehicleId,
+        date: fuelDate,
+        type: "saida",
+        category: "combustivel",
+        amount: totalAmount,
+        description:
+          fuelSupplierName ||
+          `Abastecimento veículo ${vehicles.find((v) => v.id === fuelVehicleId)?.placa || "sem placa"}`,
+      } as any);
+      if (financeError) throw financeError;
+
+      toast({
+        title: "Abastecimento registado",
+        description: "O abastecimento e a despesa financeira foram registados.",
+      });
+
+      setFuelVehicleId("");
+      setFuelDate("");
+      setFuelLiters("");
+      setFuelPricePerLiter("");
+      setFuelSupplierName("");
+      setFuelOdometer("");
+      setFuelType("");
+
+      await queryClient.invalidateQueries({ queryKey: ["fuel_fillups"] });
+      await queryClient.invalidateQueries({ queryKey: ["financial_transactions"] });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro ao registar abastecimento",
+        description: "Não foi possível registar o abastecimento.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateInventoryItem = async () => {
+    if (!inventoryName || !inventoryCategory || !inventoryUnit) {
+      toast({
+        title: "Dados em falta",
+        description: "Preencha nome, categoria e unidade do item.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentStockNumber = inventoryCurrentStock ? Number(inventoryCurrentStock.replace(",", ".")) : 0;
+    const minimumStockNumber = inventoryMinimumStock ? Number(inventoryMinimumStock.replace(",", ".")) : 0;
+    const unitCostNumber = inventoryUnitCost ? Number(inventoryUnitCost.replace(",", ".")) : null;
+
+    if (
+      !Number.isFinite(currentStockNumber) ||
+      currentStockNumber < 0 ||
+      !Number.isFinite(minimumStockNumber) ||
+      minimumStockNumber < 0 ||
+      (unitCostNumber != null && (!Number.isFinite(unitCostNumber) || unitCostNumber < 0))
+    ) {
+      toast({
+        title: "Valores inválidos",
+        description: "Stocks e custo unitário devem ser números válidos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("inventory_items").insert({
+        user_id: user?.id,
+        name: inventoryName,
+        category: inventoryCategory,
+        unit: inventoryUnit,
+        current_stock: currentStockNumber,
+        minimum_stock: minimumStockNumber,
+        unit_cost: unitCostNumber,
+        location: inventoryLocation || null,
+        notes: inventoryNotes || null,
+      } as any);
+      if (error) throw error;
+
+      if (unitCostNumber != null && currentStockNumber > 0) {
+        const totalAmount = unitCostNumber * currentStockNumber;
+        const { error: financeError } = await supabase.from("financial_transactions").insert({
+          user_id: user?.id,
+          vehicle_id: null,
+          date: new Date().toISOString().slice(0, 10),
+          type: "saida",
+          category: "inventario",
+          amount: totalAmount,
+          description: `Compra de inventário: ${inventoryName}`,
+        } as any);
+        if (financeError) throw financeError;
+      }
+
+      toast({
+        title: "Item criado",
+        description: "O item de inventário foi criado e, se aplicável, registada a despesa.",
+      });
+
+      setInventoryName("");
+      setInventoryCategory("");
+      setInventoryUnit("");
+      setInventoryCurrentStock("");
+      setInventoryMinimumStock("");
+      setInventoryUnitCost("");
+      setInventoryLocation("");
+      setInventoryNotes("");
+
+      await queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+      await queryClient.invalidateQueries({ queryKey: ["financial_transactions"] });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro ao criar item",
+        description: "Não foi possível criar o item de inventário.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateVehicleSettings = async () => {
+    if (!settingsVehicleId) {
+      toast({
+        title: "Veículo em falta",
+        description: "Selecione um veículo para actualizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const odometerNumber = settingsOdometer ? Number(settingsOdometer.replace(",", ".")) : null;
+    const nextServiceNumber = settingsNextServiceKm ? Number(settingsNextServiceKm.replace(",", ".")) : null;
+
+    if (
+      (odometerNumber != null && (!Number.isFinite(odometerNumber) || odometerNumber < 0)) ||
+      (nextServiceNumber != null && (!Number.isFinite(nextServiceNumber) || nextServiceNumber < 0))
+    ) {
+      toast({
+        title: "Valores inválidos",
+        description: "Odómetro e próxima revisão devem ser números positivos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("vehicles")
+        .update({
+          odometro: odometerNumber,
+          next_service_km: nextServiceNumber,
+        })
+        .eq("id", settingsVehicleId);
+      if (error) throw error;
+
+      toast({
+        title: "Definições actualizadas",
+        description: "As definições de quilometragem e manutenção foram guardadas.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro ao actualizar",
+        description: "Não foi possível actualizar as definições do veículo.",
         variant: "destructive",
       });
     }
@@ -590,6 +819,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="inventario" className="gap-2">
               <Package className="h-4 w-4" />
               Inventário
+            </TabsTrigger>
+            <TabsTrigger value="definicoes" className="gap-2">
+              <Bell className="h-4 w-4" />
+              Definições
             </TabsTrigger>
           </TabsList>
 
@@ -1115,6 +1348,110 @@ const AdminDashboard = () => {
           <TabsContent value="combustivel" className="space-y-4">
             <Card className="animate-fade-in">
               <CardHeader>
+                <CardTitle className="text-base">Novo abastecimento</CardTitle>
+                <CardDescription>
+                  Registe um novo abastecimento; a despesa será automaticamente reflectida nas finanças.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs md:text-sm">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Veículo</p>
+                    <Select value={fuelVehicleId} onValueChange={setFuelVehicleId}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Seleccionar veículo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vehicles.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.placa} · {v.marca} {v.modelo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Data</p>
+                    <Input type="date" className="h-8" value={fuelDate} onChange={(e) => setFuelDate(e.target.value)} />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Litros</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="h-8"
+                      value={fuelLiters}
+                      onChange={(e) => setFuelLiters(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Preço/L (Kz)</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="h-8"
+                      value={fuelPricePerLiter}
+                      onChange={(e) => setFuelPricePerLiter(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Fornecedor (opcional)</p>
+                    <Input
+                      placeholder="Ex.: Posto X"
+                      value={fuelSupplierName}
+                      onChange={(e) => setFuelSupplierName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Odómetro (km, opcional)</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="h-8"
+                      value={fuelOdometer}
+                      onChange={(e) => setFuelOdometer(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Tipo de combustível</p>
+                    <Select value={fuelType || ""} onValueChange={(v) => setFuelType(v as FuelType)}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Opcional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gasolina">Gasolina</SelectItem>
+                        <SelectItem value="diesel">Diesel</SelectItem>
+                        <SelectItem value="etanol">Etanol</SelectItem>
+                        <SelectItem value="gas_natural">Gás natural</SelectItem>
+                        <SelectItem value="eletrico">Eléctrico</SelectItem>
+                        <SelectItem value="hibrido">Híbrido</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={handleCreateFuelFillup}>
+                    Guardar abastecimento
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="animate-fade-in">
+              <CardHeader>
                 <CardTitle className="text-base">Grelha de abastecimentos</CardTitle>
                 <CardDescription>
                   Registos de combustível por viatura, integrados com os custos financeiros.
@@ -1199,7 +1536,11 @@ const AdminDashboard = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              {f.fuel_type ? fuelTypeLabels[f.fuel_type] : <span className="text-muted-foreground">—</span>}
+                              {f.fuel_type ? (
+                                fuelTypeLabels[f.fuel_type]
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">{f.liters.toLocaleString("pt-PT")}</TableCell>
                             <TableCell className="text-right">
@@ -1210,9 +1551,11 @@ const AdminDashboard = () => {
                             </TableCell>
                             <TableCell>{f.supplier_name ?? <span className="text-muted-foreground">—</span>}</TableCell>
                             <TableCell>
-                              {f.odometer != null
-                                ? `${f.odometer.toLocaleString("pt-PT")} km`
-                                : <span className="text-muted-foreground">—</span>}
+                              {f.odometer != null ? (
+                                `${f.odometer.toLocaleString("pt-PT")} km`
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1226,6 +1569,118 @@ const AdminDashboard = () => {
 
           {/* --------- ABA INVENTÁRIO --------- */}
           <TabsContent value="inventario" className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Novo item de inventário</CardTitle>
+                <CardDescription>
+                  Crie itens e defina stocks mínimos para suportar alertas de reposição.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs md:text-sm">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Nome</p>
+                    <Input
+                      placeholder="Ex.: Filtro de óleo"
+                      value={inventoryName}
+                      onChange={(e) => setInventoryName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Categoria</p>
+                    <Select
+                      value={inventoryCategory || ""}
+                      onValueChange={(v) => setInventoryCategory(v as InventoryCategory)}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pneus">Pneus</SelectItem>
+                        <SelectItem value="oleo">Óleo</SelectItem>
+                        <SelectItem value="filtros">Filtros</SelectItem>
+                        <SelectItem value="pecas">Peças</SelectItem>
+                        <SelectItem value="consumiveis">Consumíveis</SelectItem>
+                        <SelectItem value="outro">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Unidade</p>
+                    <Input
+                      placeholder="Ex.: unidade, par, litro"
+                      value={inventoryUnit}
+                      onChange={(e) => setInventoryUnit(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Stock actual</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="h-8"
+                      value={inventoryCurrentStock}
+                      onChange={(e) => setInventoryCurrentStock(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Stock mínimo</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="h-8"
+                      value={inventoryMinimumStock}
+                      onChange={(e) => setInventoryMinimumStock(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Custo unitário (Kz)</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="h-8"
+                      value={inventoryUnitCost}
+                      onChange={(e) => setInventoryUnitCost(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Localização (opcional)</p>
+                    <Input
+                      placeholder="Ex.: Armazém A"
+                      value={inventoryLocation}
+                      onChange={(e) => setInventoryLocation(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium text-muted-foreground">Notas (opcional)</p>
+                  <Input
+                    placeholder="Observações sobre o item"
+                    value={inventoryNotes}
+                    onChange={(e) => setInventoryNotes(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={handleCreateInventoryItem}>
+                    Guardar item
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="animate-fade-in">
               <CardHeader>
                 <CardTitle className="text-base">Itens de inventário</CardTitle>
@@ -1324,7 +1779,9 @@ const AdminDashboard = () => {
                                   ? `Kz ${item.unit_cost.toLocaleString("pt-PT", { minimumFractionDigits: 2 })}`
                                   : "—"}
                               </TableCell>
-                              <TableCell>{item.location ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                              <TableCell>
+                                {item.location ?? <span className="text-muted-foreground">—</span>}
+                              </TableCell>
                             </TableRow>
                           );
                         })}
@@ -1332,6 +1789,72 @@ const AdminDashboard = () => {
                     </Table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* --------- ABA DEFINIÇÕES --------- */}
+          <TabsContent value="definicoes" className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Definições de quilometragem e alertas</CardTitle>
+                <CardDescription>
+                  Ajuste o odómetro e a próxima revisão das viaturas para que os alertas e manutenções fiquem alinhados.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs md:text-sm">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Veículo</p>
+                    <Select value={settingsVehicleId} onValueChange={setSettingsVehicleId}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Seleccionar veículo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vehicles.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.placa} · {v.marca} {v.modelo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Odómetro actual (km)</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="h-8"
+                      value={settingsOdometer}
+                      onChange={(e) => setSettingsOdometer(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground">Próxima revisão aos (km)</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="h-8"
+                      value={settingsNextServiceKm}
+                      onChange={(e) => setSettingsNextServiceKm(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Utilize estes campos para alinhar as leituras de quilometragem e garantir que os alertas de manutenção e
+                  abastecimento refletem a realidade da frota.
+                </p>
+
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={handleUpdateVehicleSettings}>
+                    Guardar definições
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
