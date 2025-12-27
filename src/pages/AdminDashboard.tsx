@@ -712,9 +712,25 @@ const AdminDashboard = () => {
       const { error } = await (supabase as any).from("fuel_fillups" as any).insert(payload);
       if (error) throw error;
 
+      // Registar também nas finanças como despesa de combustível
+      const financePayload = {
+        user_id: user?.id,
+        vehicle_id: fuelVehicleId || null,
+        date: fuelDate.toISOString().slice(0, 10),
+        type: "saida",
+        category: "combustivel",
+        amount: total,
+        description: `Abastecimento de ${litersNumber.toFixed(2)} L por Kz ${priceNumber.toFixed(2)}`,
+      };
+
+      const { error: financeError } = await (supabase as any)
+        .from("financial_transactions" as any)
+        .insert(financePayload);
+      if (financeError) throw financeError;
+
       toast({
         title: "Abastecimento registado",
-        description: "O abastecimento foi gravado com sucesso.",
+        description: "O abastecimento foi gravado com sucesso e registado nas finanças.",
       });
 
       setFuelVehicleId("");
@@ -726,6 +742,7 @@ const AdminDashboard = () => {
       setFuelFuelType("");
 
       await queryClient.invalidateQueries({ queryKey: ["fuel_fillups"] });
+      await queryClient.invalidateQueries({ queryKey: ["financial_transactions"] });
     } catch (error) {
       console.error(error);
       toast({
@@ -1301,6 +1318,24 @@ const AdminDashboard = () => {
       const { error } = await (supabase as any).from("inventory_movements" as any).insert(payload);
       if (error) throw error;
       
+      // Se for saída de stock com custo, registar também como despesa nas finanças
+      if (movementType === "saida" && totalCost && totalCost > 0) {
+        const financePayload = {
+          user_id: user?.id,
+          vehicle_id: null,
+          date: movementDate.toISOString().slice(0, 10),
+          type: "saida",
+          category: "inventario",
+          amount: totalCost,
+          description: `Saída de stock (${quantity} unidades)`,
+        };
+
+        const { error: financeError } = await (supabase as any)
+          .from("financial_transactions" as any)
+          .insert(financePayload);
+        if (financeError) throw financeError;
+      }
+      
       toast({ 
         title: "Movimento registado", 
         description: `${movementType === 'entrada' ? 'Entrada' : movementType === 'saida' ? 'Saída' : 'Ajuste'} de stock registado com sucesso.` 
@@ -1310,6 +1345,7 @@ const AdminDashboard = () => {
       setMovementDialogOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["inventory_movements"] });
       await queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+      await queryClient.invalidateQueries({ queryKey: ["financial_transactions"] });
     } catch (error) {
       console.error(error);
       toast({
