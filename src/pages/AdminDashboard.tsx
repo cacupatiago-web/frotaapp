@@ -538,13 +538,56 @@ const AdminDashboard = () => {
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
     
     const totalDespesas = filteredFinancialTransactions
-      .filter((t) => t.type === "despesa")
+      .filter((t) => t.type === "saida")
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
     
     const saldo = totalReceitas - totalDespesas;
 
     return { totalReceitas, totalDespesas, saldo };
   }, [filteredFinancialTransactions]);
+
+  const financialCategoryData = useMemo(() => {
+    const base = {
+      combustivel: 0,
+      inventario: 0,
+      manutencao: 0,
+      outros: 0,
+    };
+
+    filteredFinancialTransactions
+      .filter((t) => t.type === "saida")
+      .forEach((t) => {
+        const amount = Number(t.amount || 0);
+        switch (t.category) {
+          case "combustivel":
+            base.combustivel += amount;
+            break;
+          case "inventario":
+            base.inventario += amount;
+            break;
+          case "manutencao":
+            base.manutencao += amount;
+            break;
+          default:
+            base.outros += amount;
+            break;
+        }
+      });
+
+    return [
+      { category: "Combustível", key: "combustivel", valor: base.combustivel },
+      { category: "Inventário", key: "inventario", valor: base.inventario },
+      { category: "Manutenção", key: "manutencao", valor: base.manutencao },
+      { category: "Outros", key: "outros", valor: base.outros },
+    ];
+  }, [filteredFinancialTransactions]);
+
+  const financialCategoryChartConfig: ChartConfig = {
+    valor: {
+      label: "Despesa (Kz)",
+      color: "hsl(var(--chart-1))",
+    },
+  };
 
   const filteredVehicles = useMemo(() => {
     let items = vehicles;
@@ -3290,6 +3333,48 @@ const AdminDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Resumo por categoria (despesas) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Resumo de despesas por categoria</CardTitle>
+                  <CardDescription>
+                    Valores de despesas por categoria, respeitando os filtros de tipo, categoria e datas abaixo.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {financialCategoryData.every((item) => item.valor === 0) ? (
+                    <p className="text-sm text-muted-foreground">
+                      Não existem despesas no período seleccionado.
+                    </p>
+                  ) : (
+                    <div className="h-[260px]">
+                      <ChartContainer config={financialCategoryChartConfig}>
+                        <BarChart data={financialCategoryData} margin={{ left: 12, right: 12 }}>
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="category"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                          />
+                          <YAxis
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value) => value.toLocaleString("pt-PT")}
+                          />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar
+                            dataKey="valor"
+                            fill="var(--color-valor)"
+                            radius={4}
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Transações */}
               <Card>
