@@ -232,10 +232,30 @@ const AdminDashboard = () => {
         </section>
 
         <Tabs defaultValue="financas" className="space-y-6">
-          <TabsList>
+          <TabsList className="flex flex-wrap gap-2">
             <TabsTrigger value="financas" className="gap-2">
               <WalletCards className="h-4 w-4" />
               Finanças
+            </TabsTrigger>
+            <TabsTrigger value="veiculos" className="gap-2">
+              <Car className="h-4 w-4" />
+              Veículos
+            </TabsTrigger>
+            <TabsTrigger value="motoristas" className="gap-2">
+              <Bell className="h-4 w-4" />
+              Motoristas
+            </TabsTrigger>
+            <TabsTrigger value="manutencao" className="gap-2">
+              <Bell className="h-4 w-4" />
+              Manutenção
+            </TabsTrigger>
+            <TabsTrigger value="combustivel" className="gap-2">
+              <WalletCards className="h-4 w-4" />
+              Combustível
+            </TabsTrigger>
+            <TabsTrigger value="inventario" className="gap-2">
+              <WalletCards className="h-4 w-4" />
+              Inventário
             </TabsTrigger>
           </TabsList>
 
@@ -426,6 +446,91 @@ const AdminDashboard = () => {
                     </Table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="veiculos" className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Gestão de veículos</CardTitle>
+                <CardDescription>
+                  Nesta aba poderá gerir a frota (registar, editar e remover veículos) — conteúdo a ser reactivado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Versão actual focada na área financeira. Se quiser, posso reconstruir aqui a listagem completa de
+                  veículos com filtros e acções.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="motoristas" className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Gestão de motoristas</CardTitle>
+                <CardDescription>
+                  Atribuição de veículos, contactos e estado operacional dos motoristas.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Esta secção foi simplificada temporariamente. Posso repor a listagem completa de motoristas e
+                  atribuições tal como antes.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="manutencao" className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Manutenção</CardTitle>
+                <CardDescription>
+                  Agendamento e histórico de manutenções por veículo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Painel financeiro já regista despesas de manutenção. Se quiser, posso voltar a montar aqui o quadro
+                  de agendamentos e histórico detalhado.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="combustivel" className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Combustível</CardTitle>
+                <CardDescription>
+                  Abastecimentos, consumo médio e ligação às transacções financeiras.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Neste momento os custos de combustível são tratados na aba Finanças. Posso recriar aqui a grelha de
+                  abastecimentos com filtros e exportação.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="inventario" className="space-y-4">
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Inventário</CardTitle>
+                <CardDescription>
+                  Controlo de peças, stock mínimo e movimentos de entrada/saída.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  As despesas de inventário também são incluídas no resumo financeiro. Se precisar, posso restaurar o
+                  módulo completo de itens e movimentos de stock.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
