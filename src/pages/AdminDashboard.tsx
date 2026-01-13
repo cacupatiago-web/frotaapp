@@ -251,9 +251,12 @@ const AdminDashboard = () => {
   const [selectedMaintenanceVehicleIds, setSelectedMaintenanceVehicleIds] = useState<string[]>([]);
   const [maintenanceTypes, setMaintenanceTypes] = useState<MaintenanceType[]>([]);
   const [maintenanceDate, setMaintenanceDate] = useState("");
-  const [maintenanceDescription, setMaintenanceDescription] = useState("");
+  const [maintenanceProblemDescription, setMaintenanceProblemDescription] = useState("");
+  const [maintenanceServicesExecuted, setMaintenanceServicesExecuted] = useState("");
+  const [maintenanceLaborCost, setMaintenanceLaborCost] = useState<string>("");
+  const [maintenanceMaterialsCost, setMaintenanceMaterialsCost] = useState<string>("");
+  const [maintenanceOtherCosts, setMaintenanceOtherCosts] = useState<string>("");
   const [maintenanceSupplierId, setMaintenanceSupplierId] = useState<string>("");
-  const [maintenanceCost, setMaintenanceCost] = useState<string>("");
   const [maintenanceStartDateFilter, setMaintenanceStartDateFilter] = useState<string>("");
   const [maintenanceEndDateFilter, setMaintenanceEndDateFilter] = useState<string>("");
 
@@ -264,6 +267,11 @@ const AdminDashboard = () => {
   const [fuelPricePerLiter, setFuelPricePerLiter] = useState<string>("");
   const [fuelSupplierId, setFuelSupplierId] = useState<string>("");
   const [fuelFuelType, setFuelFuelType] = useState<FuelType | "">("");
+  const [fuelOperationType, setFuelOperationType] = useState<string>("");
+  const [fuelPaymentMethod, setFuelPaymentMethod] = useState<string>("");
+  const [fuelDriverName, setFuelDriverName] = useState<string>("");
+  const [fuelDriverLicenseNumber, setFuelDriverLicenseNumber] = useState<string>("");
+  const [fuelAuthorizedBy, setFuelAuthorizedBy] = useState<string>("");
 
   const [tripDialogOpen, setTripDialogOpen] = useState(false);
   const [tripFormMode, setTripFormMode] = useState<"create" | "edit">("create");
@@ -749,6 +757,11 @@ const AdminDashboard = () => {
       supplier_name: null,
       supplier_id: fuelSupplierId || null,
       fuel_type: fuelFuelType || null,
+      operation_type: fuelOperationType || null,
+      payment_method: fuelPaymentMethod || null,
+      driver_name: fuelDriverName || null,
+      driver_license_number: fuelDriverLicenseNumber || null,
+      authorized_by: fuelAuthorizedBy || null,
     };
 
     try {
@@ -2627,30 +2640,64 @@ const AdminDashboard = () => {
                                 </Select>
                               </div>
                               <div className="space-y-1.5">
-                                <Label htmlFor="custo-manutencao">Custo total da manutenção</Label>
+                                <Label htmlFor="custo-mao-obra">Custo mão de obra</Label>
                                 <Input
-                                  id="custo-manutencao"
+                                  id="custo-mao-obra"
                                   type="number"
                                   min="0"
                                   step="0.01"
-                                  placeholder="Ex.: 25000"
-                                  value={maintenanceCost}
-                                  onChange={(e) => setMaintenanceCost(e.target.value)}
+                                  placeholder="Ex.: 15000"
+                                  value={maintenanceLaborCost}
+                                  onChange={(e) => setMaintenanceLaborCost(e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="custo-materiais">Custo materiais/peças</Label>
+                                <Input
+                                  id="custo-materiais"
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Ex.: 8000"
+                                  value={maintenanceMaterialsCost}
+                                  onChange={(e) => setMaintenanceMaterialsCost(e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="custo-outros">Outros custos (opcional)</Label>
+                                <Input
+                                  id="custo-outros"
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Ex.: 2000"
+                                  value={maintenanceOtherCosts}
+                                  onChange={(e) => setMaintenanceOtherCosts(e.target.value)}
                                 />
                                 <p className="text-[11px] text-muted-foreground">
-                                  Este valor será registado também nas finanças como despesa de manutenção.
+                                  O custo total da manutenção será a soma destes valores e será registado também nas
+                                  finanças como despesa de manutenção.
                                 </p>
                               </div>
                               <div className="space-y-1.5 md:col-span-2">
-                                <Label htmlFor="descricao-manutencao">Descrição dos trabalhos (opcional)</Label>
+                                <Label htmlFor="descricao-problema">Problema identificado (opcional)</Label>
                                 <Input
-                                  id="descricao-manutencao"
-                                  placeholder="Ex.: Revisão completa, troca de óleo e filtros, verificação de travagem"
-                                  value={maintenanceDescription}
-                                  onChange={(e) => setMaintenanceDescription(e.target.value)}
+                                  id="descricao-problema"
+                                  placeholder="Ex.: Ruído na travagem dianteira, vibração ao travar"
+                                  value={maintenanceProblemDescription}
+                                  onChange={(e) => setMaintenanceProblemDescription(e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1.5 md:col-span-2">
+                                <Label htmlFor="descricao-servicos">Serviços executados (opcional)</Label>
+                                <Input
+                                  id="descricao-servicos"
+                                  placeholder="Ex.: Substituição de pastilhas de travão, rectificação de discos, teste de estrada"
+                                  value={maintenanceServicesExecuted}
+                                  onChange={(e) => setMaintenanceServicesExecuted(e.target.value)}
                                 />
                                 <p className="text-[11px] text-muted-foreground">
-                                  A descrição aparecerá também no histórico para ajudar na auditoria das intervenções.
+                                  Estas descrições serão usadas nos relatórios de manutenção e no histórico de intervenções.
                                 </p>
                               </div>
                               <div className="flex justify-end">
@@ -2687,11 +2734,16 @@ const AdminDashboard = () => {
                                         )
                                         .join(", ");
 
-                                      const costNumber = Number(maintenanceCost);
+                                      const labor = Number(maintenanceLaborCost) || 0;
+                                      const materials = Number(maintenanceMaterialsCost) || 0;
+                                      const others = Number(maintenanceOtherCosts) || 0;
+                                      const costNumber = labor + materials + others;
+
                                       if (!Number.isFinite(costNumber) || costNumber <= 0) {
                                         toast({
                                           title: "Custo inválido",
-                                          description: "Introduza um custo total válido para a manutenção.",
+                                          description:
+                                            "Introduza pelo menos um custo válido (mão de obra, materiais ou outros).",
                                           variant: "destructive",
                                         });
                                         return;
@@ -2703,12 +2755,17 @@ const AdminDashboard = () => {
                                         scheduled_date: maintenanceDate,
                                         status: "agendado" as MaintenanceStatus,
                                         maintenance_type: maintenanceTypes[0],
-                                        description:
-                                          (tiposLabel
-                                            ? `Tipos: ${tiposLabel}. ${maintenanceDescription || ""}`
-                                            : maintenanceDescription || null) || null,
-                                        supplier_id: maintenanceSupplierId || null,
+                                        problem_description: maintenanceProblemDescription || null,
+                                        services_executed: maintenanceServicesExecuted || null,
+                                        labor_cost: labor || null,
+                                        materials_cost: materials || null,
+                                        other_costs: others || null,
                                         cost: costNumber,
+                                        description:
+                                          tiposLabel
+                                            ? `Tipos: ${tiposLabel}. ${maintenanceServicesExecuted || ""}`
+                                            : maintenanceServicesExecuted || null,
+                                        supplier_id: maintenanceSupplierId || null,
                                       }));
 
                                       const { error } = await (supabase as any)
@@ -2745,9 +2802,12 @@ const AdminDashboard = () => {
                                       setSelectedMaintenanceVehicleIds([]);
                                       setMaintenanceTypes([]);
                                       setMaintenanceDate("");
-                                      setMaintenanceDescription("");
+                                      setMaintenanceProblemDescription("");
+                                      setMaintenanceServicesExecuted("");
+                                      setMaintenanceLaborCost("");
+                                      setMaintenanceMaterialsCost("");
+                                      setMaintenanceOtherCosts("");
                                       setMaintenanceSupplierId("");
-                                      setMaintenanceCost("");
                                       await queryClient.invalidateQueries({ queryKey: ["vehicle_maintenances"] });
                                       await queryClient.invalidateQueries({ queryKey: ["financial_transactions"] });
                                     } catch (error) {
@@ -3059,8 +3119,8 @@ const AdminDashboard = () => {
                   >
                     <div className="space-y-3">
                       <p className="text-xs text-muted-foreground">
-                        Seleccione a viatura, a data do abastecimento e os dados principais. O valor total é calculado
-                        automaticamente.
+                        Seleccione a viatura, a data do abastecimento, o tipo de operação e os dados principais. O valor total
+                        é calculado automaticamente.
                       </p>
                       <div className="space-y-2">
                         <Label className="text-xs" htmlFor="fuel-vehicle">
@@ -3105,6 +3165,27 @@ const AdminDashboard = () => {
                             />
                           </PopoverContent>
                         </Popover>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs" htmlFor="fuel-operation-type">
+                          Tipo de operação
+                        </Label>
+                        <Select
+                          value={fuelOperationType || "none"}
+                          onValueChange={(value) => setFuelOperationType(value === "none" ? "" : value)}
+                        >
+                          <SelectTrigger id="fuel-operation-type">
+                            <SelectValue placeholder="Selecione o tipo de operação" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none" disabled>
+                              Selecione uma opção
+                            </SelectItem>
+                            <SelectItem value="normal">Abastecimento normal</SelectItem>
+                            <SelectItem value="emergencial">Abastecimento emergencial</SelectItem>
+                            <SelectItem value="requisicao">Abastecimento autorizado por requisição</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs" htmlFor="fuel-supplier">
@@ -3206,6 +3287,65 @@ const AdminDashboard = () => {
                               ? (Number(fuelLiters) * Number(fuelPricePerLiter)).toFixed(2)
                               : "—"}
                           </p>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label className="text-xs" htmlFor="fuel-driver-name">
+                            Nome do condutor (opcional)
+                          </Label>
+                          <Input
+                            id="fuel-driver-name"
+                            value={fuelDriverName}
+                            onChange={(e) => setFuelDriverName(e.target.value)}
+                            placeholder="Ex.: João Manuel"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs" htmlFor="fuel-driver-license">
+                            Nº da carta de condução (opcional)
+                          </Label>
+                          <Input
+                            id="fuel-driver-license"
+                            value={fuelDriverLicenseNumber}
+                            onChange={(e) => setFuelDriverLicenseNumber(e.target.value)}
+                            placeholder="Ex.: 12345678"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label className="text-xs" htmlFor="fuel-authorized-by">
+                            Responsável pela autorização (opcional)
+                          </Label>
+                          <Input
+                            id="fuel-authorized-by"
+                            value={fuelAuthorizedBy}
+                            onChange={(e) => setFuelAuthorizedBy(e.target.value)}
+                            placeholder="Ex.: Chefe de frota"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs" htmlFor="fuel-payment-method">
+                            Forma de pagamento
+                          </Label>
+                          <Select
+                            value={fuelPaymentMethod || "none"}
+                            onValueChange={(value) => setFuelPaymentMethod(value === "none" ? "" : value)}
+                          >
+                            <SelectTrigger id="fuel-payment-method">
+                              <SelectValue placeholder="Selecione a forma de pagamento" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none" disabled>
+                                Selecione uma opção
+                              </SelectItem>
+                              <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                              <SelectItem value="cartao_frota">Cartão da frota</SelectItem>
+                              <SelectItem value="fatura_credito">Fatura a crédito</SelectItem>
+                              <SelectItem value="outro">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                       <div className="flex justify-end">
