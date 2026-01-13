@@ -63,13 +63,20 @@ export type Database = {
       }
       fuel_fillups: {
         Row: {
+          authorized_by: string | null
           created_at: string
           date: string
+          driver_license_number: string | null
+          driver_name: string | null
           fuel_type: Database["public"]["Enums"]["fuel_type"] | null
           id: string
           liters: number
+          location: string | null
           odometer: number | null
+          operation_type: string | null
+          payment_method: string | null
           price_per_liter: number
+          refuel_time: string | null
           supplier_id: string | null
           supplier_name: string | null
           total_amount: number
@@ -78,13 +85,20 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
+          authorized_by?: string | null
           created_at?: string
           date: string
+          driver_license_number?: string | null
+          driver_name?: string | null
           fuel_type?: Database["public"]["Enums"]["fuel_type"] | null
           id?: string
           liters: number
+          location?: string | null
           odometer?: number | null
+          operation_type?: string | null
+          payment_method?: string | null
           price_per_liter: number
+          refuel_time?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
           total_amount: number
@@ -93,13 +107,20 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
+          authorized_by?: string | null
           created_at?: string
           date?: string
+          driver_license_number?: string | null
+          driver_name?: string | null
           fuel_type?: Database["public"]["Enums"]["fuel_type"] | null
           id?: string
           liters?: number
+          location?: string | null
           odometer?: number | null
+          operation_type?: string | null
+          payment_method?: string | null
           price_per_liter?: number
+          refuel_time?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
           total_amount?: number
@@ -397,40 +418,82 @@ export type Database = {
       }
       vehicle_maintenances: {
         Row: {
+          additional_notes: string | null
           cost: number | null
           created_at: string
           description: string | null
+          end_time: string | null
+          final_condition: string | null
           id: string
+          impact_description: string | null
+          labor_cost: number | null
           maintenance_type: Database["public"]["Enums"]["maintenance_type"]
+          materials_cost: number | null
+          other_costs: number | null
+          problem_description: string | null
+          problem_detected_at: string | null
+          recommendations: string | null
+          released_for_use: boolean | null
           scheduled_date: string
+          services_executed: string | null
+          start_time: string | null
           status: Database["public"]["Enums"]["maintenance_status"]
           supplier_id: string | null
+          tests_performed: string | null
           updated_at: string
           user_id: string
           vehicle_id: string
         }
         Insert: {
+          additional_notes?: string | null
           cost?: number | null
           created_at?: string
           description?: string | null
+          end_time?: string | null
+          final_condition?: string | null
           id?: string
+          impact_description?: string | null
+          labor_cost?: number | null
           maintenance_type: Database["public"]["Enums"]["maintenance_type"]
+          materials_cost?: number | null
+          other_costs?: number | null
+          problem_description?: string | null
+          problem_detected_at?: string | null
+          recommendations?: string | null
+          released_for_use?: boolean | null
           scheduled_date: string
+          services_executed?: string | null
+          start_time?: string | null
           status?: Database["public"]["Enums"]["maintenance_status"]
           supplier_id?: string | null
+          tests_performed?: string | null
           updated_at?: string
           user_id: string
           vehicle_id: string
         }
         Update: {
+          additional_notes?: string | null
           cost?: number | null
           created_at?: string
           description?: string | null
+          end_time?: string | null
+          final_condition?: string | null
           id?: string
+          impact_description?: string | null
+          labor_cost?: number | null
           maintenance_type?: Database["public"]["Enums"]["maintenance_type"]
+          materials_cost?: number | null
+          other_costs?: number | null
+          problem_description?: string | null
+          problem_detected_at?: string | null
+          recommendations?: string | null
+          released_for_use?: boolean | null
           scheduled_date?: string
+          services_executed?: string | null
+          start_time?: string | null
           status?: Database["public"]["Enums"]["maintenance_status"]
           supplier_id?: string | null
+          tests_performed?: string | null
           updated_at?: string
           user_id?: string
           vehicle_id?: string
@@ -459,6 +522,7 @@ export type Database = {
           combustivel: Database["public"]["Enums"]["fuel_type"] | null
           created_at: string
           driver_id: string | null
+          fleet_number: string | null
           foto_url: string | null
           gps_latitude: number | null
           gps_longitude: number | null
@@ -480,6 +544,7 @@ export type Database = {
           combustivel?: Database["public"]["Enums"]["fuel_type"] | null
           created_at?: string
           driver_id?: string | null
+          fleet_number?: string | null
           foto_url?: string | null
           gps_latitude?: number | null
           gps_longitude?: number | null
@@ -501,6 +566,7 @@ export type Database = {
           combustivel?: Database["public"]["Enums"]["fuel_type"] | null
           created_at?: string
           driver_id?: string | null
+          fleet_number?: string | null
           foto_url?: string | null
           gps_latitude?: number | null
           gps_longitude?: number | null
