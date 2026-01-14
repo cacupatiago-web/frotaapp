@@ -731,6 +731,15 @@ const AdminDashboard = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Sessão expirada",
+        description: "Volte a iniciar sessão para registar abastecimentos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const litersNumber = Number(fuelLiters);
     const priceNumber = Number(fuelPricePerLiter);
     const odometerNumber = fuelOdometer ? Number(fuelOdometer) : null;
@@ -747,7 +756,7 @@ const AdminDashboard = () => {
     const total = litersNumber * priceNumber;
 
     const payload = {
-      user_id: user?.id,
+      user_id: user.id,
       vehicle_id: fuelVehicleId,
       date: fuelDate.toISOString().slice(0, 10),
       odometer: odometerNumber,
@@ -770,7 +779,7 @@ const AdminDashboard = () => {
 
       // Registar também nas finanças como despesa de combustível
       const financePayload = {
-        user_id: user?.id,
+        user_id: user.id,
         vehicle_id: fuelVehicleId || null,
         date: fuelDate.toISOString().slice(0, 10),
         type: "saida",
@@ -803,7 +812,10 @@ const AdminDashboard = () => {
       console.error(error);
       toast({
         title: "Erro ao registar",
-        description: "Não foi possível registar o abastecimento. Tente novamente.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível registar o abastecimento. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -2715,6 +2727,15 @@ const AdminDashboard = () => {
                                       return;
                                     }
 
+                                    if (!user) {
+                                      toast({
+                                        title: "Sessão expirada",
+                                        description: "Volte a iniciar sessão para agendar manutenções.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+
                                     try {
                                       const tiposLabel = maintenanceTypes
                                         .map((t) =>
@@ -2739,18 +2760,18 @@ const AdminDashboard = () => {
                                       const others = Number(maintenanceOtherCosts) || 0;
                                       const costNumber = labor + materials + others;
 
-                                      if (!Number.isFinite(costNumber) || costNumber <= 0) {
+                                      if (!Number.isFinite(costNumber)) {
                                         toast({
                                           title: "Custo inválido",
                                           description:
-                                            "Introduza pelo menos um custo válido (mão de obra, materiais ou outros).",
+                                            "Introduza valores numéricos válidos para os custos de mão de obra, materiais ou outros.",
                                           variant: "destructive",
                                         });
                                         return;
                                       }
 
                                       const payload = selectedMaintenanceVehicleIds.map((vehicleId) => ({
-                                        user_id: user?.id,
+                                        user_id: user.id,
                                         vehicle_id: vehicleId,
                                         scheduled_date: maintenanceDate,
                                         status: "agendado" as MaintenanceStatus,
@@ -2775,7 +2796,7 @@ const AdminDashboard = () => {
                                       if (error) throw error;
 
                                       const financialPayload = payload.map((m) => ({
-                                         user_id: user?.id,
+                                         user_id: user.id,
                                          vehicle_id: m.vehicle_id,
                                          date: m.scheduled_date,
                                          type: "saida",
@@ -2815,7 +2836,9 @@ const AdminDashboard = () => {
                                       toast({
                                         title: "Erro ao agendar",
                                         description:
-                                          "Não foi possível registar as manutenções. Verifique os dados e tente novamente.",
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Não foi possível registar as manutenções. Verifique os dados e tente novamente.",
                                         variant: "destructive",
                                       });
                                     }
