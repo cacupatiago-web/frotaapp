@@ -26,11 +26,24 @@ import {
   exportMaintenancesToPDF,
   exportFuelFillupsToExcel,
   exportFuelFillupsToPDF,
+  exportMaintenancesDetailedToPDF,
+  exportFuelFillupsDetailedToPDF,
 } from "@/lib/export-utils";
 import { PROVINCIAS } from "@/shared/locations";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { TripRouteMap } from "@/components/TripRouteMap";
+import {
+  MaintenancePartsEditor,
+  type MaintenancePartLine,
+} from "@/components/admin/MaintenancePartsEditor";
+import {
+  ReportsTab,
+  type ReportsMaintenance,
+  type ReportsFuelFillup,
+  type ReportsInventoryMovement,
+  type ReportsVehicle,
+} from "@/components/admin/ReportsTab";
 
 type VehicleStatus = "em_operacao" | "parado" | "em_manutencao";
 type FuelType = "gasolina" | "diesel" | "etanol" | "gas_natural" | "eletrico" | "hibrido" | "outro";
@@ -180,6 +193,7 @@ interface InventoryMovement {
     name: string;
     unit: string;
   } | null;
+  maintenance_id?: string | null;
 }
 
 const AdminDashboard = () => {
@@ -257,8 +271,10 @@ const AdminDashboard = () => {
   const [maintenanceMaterialsCost, setMaintenanceMaterialsCost] = useState<string>("");
   const [maintenanceOtherCosts, setMaintenanceOtherCosts] = useState<string>("");
   const [maintenanceSupplierId, setMaintenanceSupplierId] = useState<string>("");
+  const [maintenancePartsUsed, setMaintenancePartsUsed] = useState<MaintenancePartLine[]>([]);
   const [maintenanceStartDateFilter, setMaintenanceStartDateFilter] = useState<string>("");
   const [maintenanceEndDateFilter, setMaintenanceEndDateFilter] = useState<string>("");
+  const [editingMaintenance, setEditingMaintenance] = useState<any | null>(null);
 
   const [fuelVehicleId, setFuelVehicleId] = useState<string>("");
   const [fuelDate, setFuelDate] = useState<Date | undefined>();
@@ -272,6 +288,7 @@ const AdminDashboard = () => {
   const [fuelDriverName, setFuelDriverName] = useState<string>("");
   const [fuelDriverLicenseNumber, setFuelDriverLicenseNumber] = useState<string>("");
   const [fuelAuthorizedBy, setFuelAuthorizedBy] = useState<string>("");
+  const [editingFillup, setEditingFillup] = useState<any | null>(null);
 
   const [tripDialogOpen, setTripDialogOpen] = useState(false);
   const [tripFormMode, setTripFormMode] = useState<"create" | "edit">("create");
@@ -468,7 +485,7 @@ const AdminDashboard = () => {
       if (!user) return [];
       const { data, error } = await (supabase as any)
         .from("inventory_movements" as any)
-        .select("*, inventory_items:item_id(name, unit)")
+        .select("*, inventory_items:item_id(name, unit), maintenance_id")
         .order("movement_date", { ascending: false })
         .limit(50);
 
@@ -719,7 +736,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleCreateFillup = async (event: React.FormEvent) => {
+  const handleSubmitFillup = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!fuelVehicleId || !fuelDate || !fuelLiters || !fuelPricePerLiter) {
@@ -755,8 +772,9 @@ const AdminDashboard = () => {
 
     const total = litersNumber * priceNumber;
 
-    const payload = {
-      user_id: user.id,
+    const isUpdate = !!editingFillup;
+
+    const payload: any = {
       vehicle_id: fuelVehicleId,
       date: fuelDate.toISOString().slice(0, 10),
       odometer: odometerNumber,
@@ -773,30 +791,46 @@ const AdminDashboard = () => {
       authorized_by: fuelAuthorizedBy || null,
     };
 
+    if (!isUpdate) {
+      payload.user_id = user.id;
+    }
+
     try {
-      const { error } = await (supabase as any).from("fuel_fillups" as any).insert(payload);
-      if (error) throw error;
+      if (isUpdate) {
+        const { error } = await (supabase as any)
+          .from("fuel_fillups" as any)
+          .update(payload)
+          .eq("id", editingFillup.id);
+        if (error) throw error;
 
-      // Registar também nas finanças como despesa de combustível
-      const financePayload = {
-        user_id: user.id,
-        vehicle_id: fuelVehicleId || null,
-        date: fuelDate.toISOString().slice(0, 10),
-        type: "saida",
-        category: "combustivel",
-        amount: total,
-        description: `Abastecimento de ${litersNumber.toFixed(2)} L por Kz ${priceNumber.toFixed(2)}`,
-      };
+        toast({
+          title: "Abastecimento atualizado",
+          description: "Os dados do abastecimento foram atualizados com sucesso.",
+        });
+      } else {
+        const { error } = await (supabase as any).from("fuel_fillups" as any).insert(payload);
+        if (error) throw error;
 
-      const { error: financeError } = await (supabase as any)
-        .from("financial_transactions" as any)
-        .insert(financePayload);
-      if (financeError) throw financeError;
+        const financePayload = {
+          user_id: user.id,
+          vehicle_id: fuelVehicleId || null,
+          date: fuelDate.toISOString().slice(0, 10),
+          type: "saida",
+          category: "combustivel",
+          amount: total,
+          description: `Abastecimento de ${litersNumber.toFixed(2)} L por Kz ${priceNumber.toFixed(2)}`,
+        };
 
-      toast({
-        title: "Abastecimento registado",
-        description: "O abastecimento foi gravado com sucesso e registado nas finanças.",
-      });
+        const { error: financeError } = await (supabase as any)
+          .from("financial_transactions" as any)
+          .insert(financePayload);
+        if (financeError) throw financeError;
+
+        toast({
+          title: "Abastecimento registado",
+          description: "O abastecimento foi gravado com sucesso e registado nas finanças.",
+        });
+      }
 
       setFuelVehicleId("");
       setFuelDate(undefined);
@@ -805,17 +839,241 @@ const AdminDashboard = () => {
       setFuelPricePerLiter("");
       setFuelSupplierId("");
       setFuelFuelType("");
+      setEditingFillup(null);
+      setFuelOperationType("");
+      setFuelPaymentMethod("");
+      setFuelDriverName("");
+      setFuelDriverLicenseNumber("");
+      setFuelAuthorizedBy("");
 
       await queryClient.invalidateQueries({ queryKey: ["fuel_fillups"] });
       await queryClient.invalidateQueries({ queryKey: ["financial_transactions"] });
     } catch (error) {
       console.error(error);
       toast({
-        title: "Erro ao registar",
+        title: isUpdate ? "Erro ao atualizar" : "Erro ao registar",
         description:
           error instanceof Error
             ? error.message
-            : "Não foi possível registar o abastecimento. Tente novamente.",
+            : `Não foi possível ${isUpdate ? "atualizar" : "registar"} o abastecimento. Tente novamente.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditFillup = (fillup: any) => {
+    setEditingFillup(fillup);
+    setFuelVehicleId(fillup.vehicle_id);
+    setFuelDate(new Date(fillup.date));
+    setFuelOdometer(fillup.odometer?.toString() ?? "");
+    setFuelLiters(fillup.liters.toString());
+    setFuelPricePerLiter(fillup.price_per_liter.toString());
+    setFuelSupplierId(fillup.supplier_id ?? "");
+    setFuelFuelType(fillup.fuel_type ?? "");
+    setFuelOperationType(fillup.operation_type ?? "");
+    setFuelPaymentMethod(fillup.payment_method ?? "");
+    setFuelDriverName(fillup.driver_name ?? "");
+    setFuelDriverLicenseNumber(fillup.driver_license_number ?? "");
+    setFuelAuthorizedBy(fillup.authorized_by ?? "");
+  };
+
+  const resetMaintenanceForm = () => {
+    setSelectedMaintenanceVehicleIds([]);
+    setMaintenanceTypes([]);
+    setMaintenanceDate("");
+    setMaintenanceProblemDescription("");
+    setMaintenanceServicesExecuted("");
+    setMaintenanceLaborCost("");
+    setMaintenanceMaterialsCost("");
+    setMaintenanceOtherCosts("");
+    setMaintenanceSupplierId("");
+    setMaintenancePartsUsed([]);
+    setEditingMaintenance(null);
+  };
+
+  const handleEditMaintenance = (maint: any) => {
+    setEditingMaintenance(maint);
+    setSelectedMaintenanceVehicleIds([maint.vehicle_id]);
+    setMaintenanceTypes([maint.maintenance_type]);
+    setMaintenanceDate(maint.scheduled_date || "");
+    setMaintenanceProblemDescription(maint.problem_description ?? "");
+    setMaintenanceServicesExecuted(maint.services_executed ?? "");
+    setMaintenanceLaborCost(maint.labor_cost?.toString() ?? "");
+    setMaintenanceMaterialsCost(maint.materials_cost?.toString() ?? "");
+    setMaintenanceOtherCosts(maint.other_costs?.toString() ?? "");
+    setMaintenanceSupplierId(maint.supplier_id ?? "");
+    setMaintenancePartsUsed([]);
+  };
+
+  const handleSaveMaintenance = async () => {
+    const isUpdate = !!editingMaintenance;
+
+    if (!selectedMaintenanceVehicleIds.length || !maintenanceTypes.length || !maintenanceDate) {
+      toast({
+        title: "Dados em falta",
+        description: "Selecione pelo menos um veículo, um tipo de manutenção e uma data.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Sessão expirada",
+        description: "Volte a iniciar sessão para agendar/editar manutenções.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const labor = Number(maintenanceLaborCost) || 0;
+    const materials = Number(maintenanceMaterialsCost) || 0;
+    const others = Number(maintenanceOtherCosts) || 0;
+    const costNumber = labor + materials + others;
+
+    if (!Number.isFinite(costNumber)) {
+      toast({
+        title: "Custo inválido",
+        description: "Introduza valores numéricos válidos para os custos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const tiposLabel = maintenanceTypes
+      .map((t) =>
+        t === "revisao_geral"
+          ? "Revisão geral"
+          : t === "troca_oleo"
+            ? "Troca de óleo"
+            : t === "pneus"
+              ? "Troca de pneus"
+              : t === "freios"
+                ? "Sistema de travagem"
+                : t === "suspensao"
+                  ? "Suspensão"
+                  : t === "motor"
+                    ? "Motor"
+                    : "Outro tipo",
+      )
+      .join(", ");
+
+    const basePayload: any = {
+      scheduled_date: maintenanceDate,
+      status: "agendado" as any,
+      maintenance_type: maintenanceTypes[0],
+      problem_description: maintenanceProblemDescription || null,
+      services_executed: maintenanceServicesExecuted || null,
+      labor_cost: labor || null,
+      materials_cost: materials || null,
+      other_costs: others || null,
+      cost: costNumber,
+      description: tiposLabel ? `Tipos: ${tiposLabel}. ${maintenanceServicesExecuted || ""}` : maintenanceServicesExecuted || null,
+      supplier_id: maintenanceSupplierId || null,
+    };
+
+    if (!isUpdate) {
+      basePayload.user_id = user.id;
+    }
+
+    try {
+      let savedMaintenanceId: string | null = null;
+
+      if (isUpdate) {
+        const { error } = await (supabase as any)
+          .from("vehicle_maintenances" as any)
+          .update(basePayload)
+          .eq("id", editingMaintenance.id);
+        if (error) throw error;
+        savedMaintenanceId = editingMaintenance.id;
+
+        toast({
+          title: "Manutenção atualizada",
+          description: "A manutenção foi atualizada com sucesso.",
+        });
+      } else {
+        const payload = selectedMaintenanceVehicleIds.map((vehicleId) => ({
+          ...basePayload,
+          vehicle_id: vehicleId,
+        }));
+
+        const { data: inserted, error } = await (supabase as any)
+          .from("vehicle_maintenances" as any)
+          .insert(payload)
+          .select();
+        if (error) throw error;
+
+        if (inserted && inserted.length > 0) {
+          savedMaintenanceId = inserted[0].id;
+        }
+
+        const financialPayload = payload.map((m) => ({
+          user_id: user.id,
+          vehicle_id: m.vehicle_id,
+          date: m.scheduled_date,
+          type: "saida",
+          category: "manutencao",
+          amount: costNumber,
+          description:
+            m.description ||
+            `Manutenção veículo ${vehicles.find((v) => v.id === m.vehicle_id)?.placa || "sem placa"}`,
+        }));
+
+        const { error: financeError } = await (supabase as any)
+          .from("financial_transactions" as any)
+          .insert(financialPayload);
+        if (financeError) throw financeError;
+
+        toast({
+          title: "Manutenções agendadas",
+          description: "Os pedidos de manutenção foram registados com sucesso.",
+        });
+      }
+
+      // Registar peças usadas (só se houver e houver ID salvo)
+      if (savedMaintenanceId && maintenancePartsUsed.length > 0) {
+        const lines = maintenancePartsUsed.filter((l) => l.item_id && l.quantity);
+        if (lines.length > 0) {
+          const movementsPayload = lines.map((l) => ({
+            user_id: user.id,
+            item_id: l.item_id,
+            maintenance_id: savedMaintenanceId,
+            movement_type: "saida",
+            quantity: Number(l.quantity),
+            unit_cost: null,
+            total_cost: null,
+            reference: `Manutenção ${editingMaintenance?.id ?? savedMaintenanceId}`,
+            notes: "Saída de inventário associada à manutenção",
+            movement_date: maintenanceDate,
+          }));
+
+          const { error: movError } = await (supabase as any)
+            .from("inventory_movements" as any)
+            .insert(movementsPayload);
+          if (movError) {
+            console.error("Erro ao registar movimentos de inventário", movError);
+            toast({
+              title: "Aviso",
+              description: "Manutenção criada, mas houve erro ao registar movimentos de inventário.",
+              variant: "default",
+            });
+          }
+        }
+      }
+
+      resetMaintenanceForm();
+      await queryClient.invalidateQueries({ queryKey: ["vehicle_maintenances"] });
+      await queryClient.invalidateQueries({ queryKey: ["financial_transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["inventory_movements"] });
+      await queryClient.invalidateQueries({ queryKey: ["inventory_items"] });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: isUpdate ? "Erro ao atualizar" : "Erro ao agendar",
+        description:
+          error instanceof Error
+            ? error.message
+            : `Não foi possível ${isUpdate ? "atualizar" : "registar"} a(s) manutenção(ões). Verifique os dados e tente novamente.`,
         variant: "destructive",
       });
     }
