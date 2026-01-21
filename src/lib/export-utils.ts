@@ -19,6 +19,14 @@ interface Maintenance {
   status: string;
   maintenance_type: string;
   description: string | null;
+  cost?: number | null;
+  labor_cost?: number | null;
+  materials_cost?: number | null;
+  other_costs?: number | null;
+  problem_description?: string | null;
+  services_executed?: string | null;
+  supplier_name?: string | null;
+  parts_used?: string | null;
 }
 
 interface FuelFillup {
@@ -29,7 +37,127 @@ interface FuelFillup {
   price_per_liter: number;
   total_amount: number;
   supplier_name: string | null;
+  operation_type?: string | null;
+  payment_method?: string | null;
+  driver_name?: string | null;
+  driver_license_number?: string | null;
+  authorized_by?: string | null;
+  location?: string | null;
+  refuel_time?: string | null;
 }
+
+// Exportar manutenções para PDF (detalhado)
+export const exportMaintenancesDetailedToPDF = (maintenances: Maintenance[], meta?: { periodLabel?: string }) => {
+  const doc = new jsPDF();
+
+  doc.setFontSize(18);
+  doc.text('Relatório Detalhado de Manutenções', 14, 20);
+
+  doc.setFontSize(10);
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-PT')}`, 14, 28);
+  if (meta?.periodLabel) {
+    doc.text(meta.periodLabel, 14, 34);
+  }
+
+  const tableData = maintenances.map((m) => [
+    m.vehicle ? `${m.vehicle.placa}` : '—',
+    new Date(m.scheduled_date).toLocaleDateString('pt-PT'),
+    m.status === 'agendado' ? 'Agendado' : m.status === 'em_progresso' ? 'Em progresso' : 'Concluído',
+    m.maintenance_type.replace(/_/g, ' '),
+    m.cost != null ? Number(m.cost).toFixed(2) : '—',
+    m.labor_cost != null ? Number(m.labor_cost).toFixed(2) : '—',
+    m.materials_cost != null ? Number(m.materials_cost).toFixed(2) : '—',
+    m.other_costs != null ? Number(m.other_costs).toFixed(2) : '—',
+    m.supplier_name || '—',
+    (m.problem_description || '—').toString(),
+    (m.services_executed || '—').toString(),
+    m.parts_used || '—',
+  ]);
+
+  autoTable(doc, {
+    startY: meta?.periodLabel ? 40 : 35,
+    head: [[
+      'Viatura',
+      'Data',
+      'Estado',
+      'Tipo',
+      'Custo',
+      'Mão-obra',
+      'Materiais',
+      'Outros',
+      'Fornecedor',
+      'Problema',
+      'Serviços',
+      'Peças usadas',
+    ]],
+    body: tableData,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [59, 130, 246] },
+    columnStyles: {
+      9: { cellWidth: 34 },
+      10: { cellWidth: 34 },
+      11: { cellWidth: 34 },
+    },
+  });
+
+  doc.save(`manutencoes_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+};
+
+// Exportar abastecimentos para PDF (detalhado)
+export const exportFuelFillupsDetailedToPDF = (fillups: FuelFillup[], meta?: { periodLabel?: string }) => {
+  const doc = new jsPDF();
+
+  doc.setFontSize(18);
+  doc.text('Relatório Detalhado de Abastecimentos', 14, 20);
+
+  doc.setFontSize(10);
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-PT')}`, 14, 28);
+  if (meta?.periodLabel) {
+    doc.text(meta.periodLabel, 14, 34);
+  }
+
+  const tableData = fillups.map((f) => [
+    f.vehicle ? `${f.vehicle.placa}` : '—',
+    new Date(f.date).toLocaleDateString('pt-PT'),
+    f.refuel_time || '—',
+    f.odometer?.toString() || '—',
+    f.liters.toFixed(2),
+    f.price_per_liter.toFixed(3),
+    f.total_amount.toFixed(2),
+    f.supplier_name || '—',
+    f.operation_type || '—',
+    f.payment_method || '—',
+    f.driver_name || '—',
+    f.driver_license_number || '—',
+    f.authorized_by || '—',
+    f.location || '—',
+  ]);
+
+  autoTable(doc, {
+    startY: meta?.periodLabel ? 40 : 35,
+    head: [[
+      'Viatura',
+      'Data',
+      'Hora',
+      'Odómetro',
+      'Litros',
+      'Kz/L',
+      'Total',
+      'Fornecedor',
+      'Operação',
+      'Pagamento',
+      'Condutor',
+      'Carta',
+      'Autorizado por',
+      'Local',
+    ]],
+    body: tableData,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [59, 130, 246] },
+  });
+
+  doc.save(`abastecimentos_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+};
 
 // Exportar veículos para Excel
 export const exportVehiclesToExcel = (vehicles: Vehicle[]) => {

@@ -206,6 +206,7 @@ export type Database = {
           created_at: string
           id: string
           item_id: string
+          maintenance_id: string | null
           movement_date: string
           movement_type: Database["public"]["Enums"]["inventory_movement_type"]
           notes: string | null
@@ -220,6 +221,7 @@ export type Database = {
           created_at?: string
           id?: string
           item_id: string
+          maintenance_id?: string | null
           movement_date?: string
           movement_type: Database["public"]["Enums"]["inventory_movement_type"]
           notes?: string | null
@@ -234,6 +236,7 @@ export type Database = {
           created_at?: string
           id?: string
           item_id?: string
+          maintenance_id?: string | null
           movement_date?: string
           movement_type?: Database["public"]["Enums"]["inventory_movement_type"]
           notes?: string | null
@@ -250,6 +253,13 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_maintenance_id_fkey"
+            columns: ["maintenance_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_maintenances"
             referencedColumns: ["id"]
           },
         ]
