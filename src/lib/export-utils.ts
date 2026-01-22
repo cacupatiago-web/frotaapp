@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { exportFuelFillupsInstitutionalToPDF } from "@/lib/export/fuel-fillups-detailed-pdf";
+import { exportFuelFillupsInstitutionalToPDFWithDbPrev } from "@/lib/export/fuel-fillups-detailed-pdf";
 
 // Tipos para os dados
 interface Vehicle {
@@ -31,6 +31,8 @@ interface Maintenance {
 }
 
 interface FuelFillup {
+  id?: string;
+  vehicle_id?: string;
   vehicle?: { placa: string; marca: string; modelo: string; ano?: number | null; combustivel?: string | null; fleet_number?: string | null };
   date: string;
   odometer: number | null;
@@ -106,8 +108,8 @@ export const exportMaintenancesDetailedToPDF = (maintenances: Maintenance[], met
 };
 
 // Exportar abastecimentos para PDF (detalhado)
-export const exportFuelFillupsDetailedToPDF = (fillups: FuelFillup[], meta?: { periodLabel?: string }) => {
-  exportFuelFillupsInstitutionalToPDF(fillups as any, meta);
+export const exportFuelFillupsDetailedToPDF = async (fillups: FuelFillup[], meta?: { periodLabel?: string }) => {
+  await exportFuelFillupsInstitutionalToPDFWithDbPrev(fillups as any, meta);
 };
 
 // Exportar veículos para Excel
