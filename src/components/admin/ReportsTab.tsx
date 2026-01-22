@@ -5,7 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
-export type ReportsVehicle = { id: string; placa: string; marca: string; modelo: string };
+export type ReportsVehicle = {
+  id: string;
+  placa: string;
+  marca: string;
+  modelo: string;
+  ano?: number | null;
+  combustivel?: string | null;
+  fleet_number?: string | null;
+};
 
 export type ReportsMaintenance = {
   id: string;
@@ -40,7 +48,14 @@ export type ReportsFuelFillup = {
   authorized_by?: string | null;
   location?: string | null;
   refuel_time?: string | null;
-  vehicle?: { placa: string; marca: string; modelo: string } | null;
+  vehicle?: {
+    placa: string;
+    marca: string;
+    modelo: string;
+    ano?: number | null;
+    combustivel?: string | null;
+    fleet_number?: string | null;
+  } | null;
 };
 
 export type ReportsInventoryMovement = {
