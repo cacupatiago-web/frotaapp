@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { exportFuelFillupsInstitutionalToPDF } from "@/lib/export/fuel-fillups-detailed-pdf";
 
 // Tipos para os dados
 interface Vehicle {
@@ -30,7 +31,7 @@ interface Maintenance {
 }
 
 interface FuelFillup {
-  vehicle?: { placa: string; marca: string; modelo: string };
+  vehicle?: { placa: string; marca: string; modelo: string; ano?: number | null; combustivel?: string | null; fleet_number?: string | null };
   date: string;
   odometer: number | null;
   liters: number;
@@ -44,6 +45,7 @@ interface FuelFillup {
   authorized_by?: string | null;
   location?: string | null;
   refuel_time?: string | null;
+  fuel_type?: string | null;
 }
 
 // Exportar manutenções para PDF (detalhado)
@@ -105,58 +107,7 @@ export const exportMaintenancesDetailedToPDF = (maintenances: Maintenance[], met
 
 // Exportar abastecimentos para PDF (detalhado)
 export const exportFuelFillupsDetailedToPDF = (fillups: FuelFillup[], meta?: { periodLabel?: string }) => {
-  const doc = new jsPDF();
-
-  doc.setFontSize(18);
-  doc.text('Relatório Detalhado de Abastecimentos', 14, 20);
-
-  doc.setFontSize(10);
-  doc.text(`Data: ${new Date().toLocaleDateString('pt-PT')}`, 14, 28);
-  if (meta?.periodLabel) {
-    doc.text(meta.periodLabel, 14, 34);
-  }
-
-  const tableData = fillups.map((f) => [
-    f.vehicle ? `${f.vehicle.placa}` : '—',
-    new Date(f.date).toLocaleDateString('pt-PT'),
-    f.refuel_time || '—',
-    f.odometer?.toString() || '—',
-    f.liters.toFixed(2),
-    f.price_per_liter.toFixed(3),
-    f.total_amount.toFixed(2),
-    f.supplier_name || '—',
-    f.operation_type || '—',
-    f.payment_method || '—',
-    f.driver_name || '—',
-    f.driver_license_number || '—',
-    f.authorized_by || '—',
-    f.location || '—',
-  ]);
-
-  autoTable(doc, {
-    startY: meta?.periodLabel ? 40 : 35,
-    head: [[
-      'Viatura',
-      'Data',
-      'Hora',
-      'Odómetro',
-      'Litros',
-      'Kz/L',
-      'Total',
-      'Fornecedor',
-      'Operação',
-      'Pagamento',
-      'Condutor',
-      'Carta',
-      'Autorizado por',
-      'Local',
-    ]],
-    body: tableData,
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [59, 130, 246] },
-  });
-
-  doc.save(`abastecimentos_detalhado_${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportFuelFillupsInstitutionalToPDF(fillups as any, meta);
 };
 
 // Exportar veículos para Excel

@@ -69,6 +69,7 @@ interface Vehicle {
   status: VehicleStatus;
   combustivel: FuelType | null;
   odometro: number | null;
+  fleet_number: string | null;
   gps_latitude: number | null;
   gps_longitude: number | null;
   foto_url: string | null;
@@ -83,6 +84,7 @@ interface VehicleForm {
   marca: string;
   modelo: string;
   ano?: number;
+  fleet_number?: string;
   status: VehicleStatus;
   combustivel?: FuelType;
   odometro?: number;
@@ -105,12 +107,22 @@ interface FuelFillup {
   supplier_name: string | null;
   supplier_id: string | null;
   fuel_type: FuelType | null;
+  operation_type?: string | null;
+  payment_method?: string | null;
+  driver_name?: string | null;
+  driver_license_number?: string | null;
+  authorized_by?: string | null;
+  location?: string | null;
+  refuel_time?: string | null;
   created_at: string;
   updated_at: string;
   vehicle?: {
     placa: string;
     marca: string;
     modelo: string;
+    ano?: number | null;
+    combustivel?: FuelType | null;
+    fleet_number?: string | null;
   } | null;
 }
 
@@ -409,7 +421,7 @@ const AdminDashboard = () => {
       const { data, error } = await (supabase as any)
         .from("fuel_fillups" as any)
         .select(
-          "id, user_id, vehicle_id, date, odometer, liters, price_per_liter, total_amount, supplier_id, supplier_name, fuel_type, created_at, updated_at, vehicles:vehicle_id(placa, marca, modelo)",
+          "id, user_id, vehicle_id, date, odometer, liters, price_per_liter, total_amount, supplier_id, supplier_name, fuel_type, operation_type, payment_method, driver_name, driver_license_number, authorized_by, location, refuel_time, created_at, updated_at, vehicles:vehicle_id(placa, marca, modelo, ano, combustivel, fleet_number)",
         )
         .order("date", { ascending: false })
         .limit(50);
@@ -660,6 +672,7 @@ const AdminDashboard = () => {
         marca: vehicle.marca,
         modelo: vehicle.modelo,
         ano: vehicle.ano ?? undefined,
+        fleet_number: vehicle.fleet_number ?? undefined,
         status: vehicle.status,
         combustivel: vehicle.combustivel ?? undefined,
         odometro: vehicle.odometro ?? undefined,
@@ -675,6 +688,7 @@ const AdminDashboard = () => {
         marca: "",
         modelo: "",
         status: "em_operacao",
+        fleet_number: "",
         provincia: "",
         municipio: "",
         bairro: "",
@@ -701,6 +715,7 @@ const AdminDashboard = () => {
       marca: form.marca.trim(),
       modelo: form.modelo.trim(),
       ano: form.ano ?? null,
+      fleet_number: form.fleet_number?.trim() || null,
       status: form.status,
       combustivel: form.combustivel ?? null,
       odometro: form.odometro ?? null,
@@ -2392,6 +2407,16 @@ const AdminDashboard = () => {
                             onChange={(e) =>
                               setForm((f) => ({ ...f, ano: e.target.value ? Number(e.target.value) : undefined }))
                             }
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="fleet_number">Nº de frota</Label>
+                          <Input
+                            id="fleet_number"
+                            value={form.fleet_number ?? ""}
+                            onChange={(e) => setForm((f) => ({ ...f, fleet_number: e.target.value }))}
+                            placeholder="Ex.: FROTA-012"
                           />
                         </div>
 
