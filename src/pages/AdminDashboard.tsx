@@ -4707,7 +4707,7 @@ const AdminDashboard = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="supplier-phone">Telefone</Label>
                   <Input
@@ -4943,7 +4943,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="finance-amount">Valor (Kz) *</Label>
                   <Input
@@ -5053,7 +5053,7 @@ const AdminDashboard = () => {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="movement-type">Tipo *</Label>
                   <Select
@@ -5086,7 +5086,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="movement-date">Data *</Label>
                   <Popover>

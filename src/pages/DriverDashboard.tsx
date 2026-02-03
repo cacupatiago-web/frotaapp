@@ -441,8 +441,8 @@ const DriverDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95 text-foreground">
       <header className="border-b border-border/60 bg-background/80 backdrop-blur-md">
-        <div className="container flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
+        <div className="container flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-accent text-primary-foreground shadow-md">
               <Car className="h-5 w-5" />
             </div>
@@ -454,7 +454,7 @@ const DriverDashboard = () => {
               Motorista
             </Badge>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <Link to="/" className="hover:text-primary">
                 Página inicial
